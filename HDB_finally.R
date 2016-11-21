@@ -106,7 +106,6 @@ newdata1 <-newdata
 
 
 #######################
-#######################
 
 names(calender)[1] <-"date"
 
@@ -240,6 +239,8 @@ b <-calender
 
 b$`wake up` <-paste(b$date, "07:30:01")
 b$`wake up` <-strptime(b$`wake up`, "%Y-%m-%d %H:%M:%S")
+b$`wake up` <-as.POSIXct(b$`wake up`)
+
 b <-b[,-2]
 ############################################
 newdata$time <-as.POSIXct(newdata$time)
@@ -327,12 +328,7 @@ while (i<nrow(calender)) {
   if(nrow(series1)==0) b$sleep[i]=NA
   i=i+1
 }
-########revising
-b$`wake up`[68]=NA
-b$sleep[68]=NA
-flag =strptime("2016-07-30 12:00:00","%Y-%m-%d %H:%M:%S")
-b$`wake up`[2]=flag
-b1 <-b
+
 #################################################
 i=2
 series1 <-filter(series, series$date==calender$date[i]|series$date==calender$date[i-1])
