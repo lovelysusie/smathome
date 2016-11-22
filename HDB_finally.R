@@ -269,7 +269,8 @@ flag <-paste(b$date[1], "05:00:00")
 flag <-strptime(flag, "%Y-%m-%d %H:%M:%S")
 
 if (nrow(starting)==0) b$`wake up`[1] = head(series1$time,1)
-if (b$`wake up`[1] <flag) series1 <-filter(series1,series1$time>flag);b$`wake up`[1] = head(series1$time,1)
+if (b$`wake up`[1] <flag) series1 <-filter(series1,series1$time>flag)
+if (b$`wake up`[1] <flag) b$`wake up`[1] = head(series1$time,1)
 ###
 
 i=2
@@ -287,8 +288,9 @@ while (i <j){
   flag <-strptime(flag, "%Y-%m-%d %H:%M:%S")
   
   b$`wake up`[i] <-tail(ending$time,1)
-  if (nrow(starting)==0) b$`wake up`[i] = head(series1$time,1)
-  if (b$`wake up`[1] <flag) series1 <-filter(series1,series1$time>flag);b$`wake up`[i] = head(series1$time,1)
+  if (nrow(ending)==0) b$`wake up`[i] = head(series1$time,1)
+  if (b$`wake up`[i] <flag) series1 <-filter(series1,series1$time>flag)
+  if (b$`wake up`[i] <flag) b$`wake up`[i] = head(series1$time,1)
   i=i+1
 }
 ###########################################
@@ -297,7 +299,7 @@ while (i <j){
 
 #setting the sleeping time as 22:00 first.
 
-b$sleep <-paste(b$date, "22:29:59")
+b$sleep <-paste(b$date, "20:29:59")
 b$sleep <-strptime(b$sleep, "%Y-%m-%d %H:%M:%S")
 #find the real sleep time
 i=2
