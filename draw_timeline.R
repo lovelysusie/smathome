@@ -21,7 +21,7 @@ while (i<j) {
   i=i+1
 }
 ############################
-wakeup$wakeup <-wakeup$wakeup-86400*2
+wakeup$wakeup <-wakeup$wakeup-86400
 ###########################
 names(wakeup) <-c("date","sleep","wakeup")
 #######
