@@ -1,4 +1,5 @@
 library(dplyr)
+library(timevis)
 
 hdb <-read.csv(file.choose())
 a <-hdb
@@ -36,7 +37,37 @@ out <-filter(hdb03, hdb03$value=="false")
 backin <-filter(hdb03, hdb03$value=="true")
 outtime <-data.frame(out=out$time, backin=backin$time)
 outtime$duration <-difftime(outtime$backin,outtime$out, units="mins")
+##################################
+#for advent rooms
+out <-filter(keys, keys$value=="FALSE")
+backin <-filter(keys, keys$value=="TRUE")
+outtime <-data.frame(out=out$time[1:12], backin=backin$time[2:13])
+outtime$duration <-difftime(outtime$backin,outtime$out, units="mins")
+#draw the outdoor graph
+outtime$date <-as.character(outtime$out)
+outtime$date <-substr(outtime$date,6,10)
 
+outtime$out <-as.character(outtime$out)
+substr(outtime$out,9,10) <-"16"
+outtime$out <-strptime(outtime$out, "%Y-%m-%d %H:%M:%S")
+outtime$out <-as.POSIXct(outtime$out)
 
+outtime$backin <-as.character(outtime$backin)
+substr(outtime$backin,9,10) <-"16"
+outtime$backin <-strptime(outtime$backin, "%Y-%m-%d %H:%M:%S")
+outtime$backin <-as.POSIXct(outtime$backin)
+
+####
+data <- data.frame(
+  id      = 1:nrow(outtime),
+  content = outtime$date,
+  start   = outtime$out,
+  end     = outtime$backin
+)
+timevis(data)
+
+##########
+outtime$out <-as.character()
+##########
 setwd("/Users/Susie/Desktop")
-write.csv(HDB.No, "hdb_ourdoor_freq.csv", row.names = FALSE)
+write.csv(outtime, "ourdoor_gap.csv", row.names = FALSE)
