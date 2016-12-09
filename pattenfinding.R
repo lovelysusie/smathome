@@ -91,11 +91,95 @@ while (j>0) {
 }
 timetable <-timetable[,-6]
 #######set the tasklocation column
-i=937
+i=1
 j=nrow(timetable)+1
 while (i<j) {
-  k=data.frame(bedroom=timetable$bedroom[i], bathroom=timetable$bathroom[i], 
-               livingroom=timetable$livingroom[i],kitchen=timetable$kitchen[i])
-  h=max(k)
-  which(k=h,arr.ind = TRUE)
+  k=timetable[i,(2:5)]
+  if (max(k)!=0) h=which.max(k) else timetable$location[i] = "pending"
+  if (max(k)!=0 & h==1) timetable$location[i] = "bedroom" 
+  if (max(k)!=0 & h==2) timetable$location[i] = "bathroom"
+  if (max(k)!=0 & h==3) timetable$location[i] = "livingroom"
+  if (max(k)!=0 & h==4) timetable$location[i] = "kitchen"
+  i=i+1
 }
+#######set the status column
+k = which(timetable$location=="pending", arr.ind = TRUE)
+timetable$status <-"lying"
+timetable$status[timetable$location!="pending"]="awake"
+#######
+timeline <-sqldf("SELECT * FROM timeline LEFT OUTER JOIN timetable ON timeline.timeline=timetable.timeline")
+timeline <-timeline[,-c(7:11)]
+timeline$location[1:300] <-"bedroom"
+timeline$location[306:393] <-"bedroom"
+timeline$status[404] <-"toilet"
+timeline$location[404] <-"bathroom"
+timeline$location[485:498] <-"bedroom"
+timeline$status[512] <-"toilet"
+timeline$location[512] <-"bathroom"
+timeline$location[815:816] <-"livingroom"
+timeline$location[822:827] <-"livingroom"
+timeline$location[837:838] <-"livingroom"
+timeline$location[943:977] <-"livingroom"
+timeline$location[985:986] <-"livingroom"
+
+timeline$location[996:1022] <-"bedroom"
+timeline$location[1025] <-"bedroom"
+timeline$location[1240:1260] <-"bedroom"
+timeline$location[1268:1440] <-"bedroom"
+
+timeline$location[1104:1105] <-"livingroom"
+timeline$location[1145:1181] <-"livingroom"
+timeline$location[1196:1228] <-"livingroom"
+##########################
+timetable <-timeline[,c(1,7:8)]
+
+#set out time as out
+timetable$location[is.na(timetable$location)] <-"outdoor"
+timetable$status[is.na(timetable$status)] <-"outdoor activity"
+timetable$timegroup <-timetable$timeline
+timetable$timegroup <-as.character(timetable$timegroup)
+substr(timetable$timegroup[1:20], 4, 5)
+i=1
+j=nrow(timetable)+1
+while (i<j) {
+  if (substr(timetable$timegroup[i], 4, 4)=="0"|
+      substr(timetable$timegroup[i], 4, 4)=="1"|
+      substr(timetable$timegroup[i], 4, 4)=="2") substr(timetable$timegroup[i], 4, 5)="00"
+  i=i+1
+}
+
+i=1
+j=nrow(timetable)+1
+while (i<j) {
+  if (substr(timetable$timegroup[i], 4, 4)=="3"|
+      substr(timetable$timegroup[i], 4, 4)=="4"|
+      substr(timetable$timegroup[i], 4, 4)=="5") substr(timetable$timegroup[i], 4, 5)="30"
+  i=i+1
+}
+
+finaltable <-data.frame(table(timetable$timegroup, timetable$status))
+finaltable <-finaltable[1:48,1]
+finaltable <-data.frame(finaltable)
+finaltable$awake = k[,1]
+finaltable$lying = k[,2]
+finaltable$outdoor_activity = k[,3]
+finaltable$toilet = k[,4]
+
+i=1
+j=49
+while (i<j) {
+  h <-finaltable[i,2:5]
+  if (which.max(h)==1) finaltable$status[i]="awake"
+  if (which.max(h)==2) finaltable$status[i]="lying"
+  if (which.max(h)==3) finaltable$status[i]="outdoor"
+  if (which.max(h)==4) finaltable$status[i]="toilet"
+  i=i+1
+}
+
+i=1
+j=49
+while (i<j) {
+  if (finaltable$toilet[i]>0) finaltable$status[i] = paste(finaltable$status[i],",toilet")
+  i=i+1
+}
+#################################
