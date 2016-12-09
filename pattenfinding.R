@@ -18,7 +18,7 @@ calendar <-table(hdbdata$date)
 calendar <-data.frame(calendar)
 names(calendar) <-c("date","freq")
 
-day1 <-filter(hdbdata, hdbdata$date=="2016-12-06")
+day1 <-filter(hdbdata, hdbdata$date=="2016-11-24")
 bedroom <-filter(day1, day1$taskLocation=="Bedroom" & day1$name=="movement")
 timetable <-table(bedroom$time)
 timetable <-data.frame(timetable)
@@ -109,27 +109,32 @@ timetable$status[timetable$location!="pending"]="awake"
 #######
 timeline <-sqldf("SELECT * FROM timeline LEFT OUTER JOIN timetable ON timeline.timeline=timetable.timeline")
 timeline <-timeline[,-c(7:11)]
-timeline$location[1:300] <-"bedroom"
-timeline$location[306:393] <-"bedroom"
-timeline$status[404] <-"toilet"
-timeline$location[404] <-"bathroom"
-timeline$location[485:498] <-"bedroom"
-timeline$status[512] <-"toilet"
-timeline$location[512] <-"bathroom"
-timeline$location[815:816] <-"livingroom"
-timeline$location[822:827] <-"livingroom"
-timeline$location[837:838] <-"livingroom"
-timeline$location[943:977] <-"livingroom"
-timeline$location[985:986] <-"livingroom"
 
-timeline$location[996:1022] <-"bedroom"
-timeline$location[1025] <-"bedroom"
-timeline$location[1240:1260] <-"bedroom"
-timeline$location[1268:1440] <-"bedroom"
+timeline$location[1:196] <-"bedroom"
+timeline$location[202:302] <-"bedroom"
+timeline$location[314:414] <-"bedroom"
+#timeline$location[732] <-"bedroom"
+timeline$location[1440] <-"bedroom"
+timeline$location[1045:1051] <-"bedroom"
+timeline$location[1053:1055] <-"bedroom"
+timeline$location[1063:1078] <-"bedroom"
+timeline$location[1134:1152] <-"bedroom"
+timeline$location[1186:1187] <-"bedroom"
+timeline$location[1189:1239] <-"bedroom"
+timeline$location[1271:1274] <-"bedroom"
+timeline$location[1282:1320] <-"bedroom"
+timeline$location[1326:1436] <-"bedroom"
 
-timeline$location[1104:1105] <-"livingroom"
-timeline$location[1145:1181] <-"livingroom"
-timeline$location[1196:1228] <-"livingroom"
+
+
+timeline$location[756:771] <-"livingroom"
+timeline$location[780:785] <-"livingroom"
+timeline$location[1153:1183] <-"livingroom"
+timeline$location[1242:1269] <-"livingroom"
+
+timeline$status[424:425] <-"toilet"
+timeline$location[424:425] <-"bathroom"
+
 ##########################
 timetable <-timeline[,c(1,7:8)]
 
@@ -160,6 +165,7 @@ while (i<j) {
 finaltable <-data.frame(table(timetable$timegroup, timetable$status))
 finaltable <-finaltable[1:48,1]
 finaltable <-data.frame(finaltable)
+k=table(timetable$timegroup, timetable$status)
 finaltable$awake = k[,1]
 finaltable$lying = k[,2]
 finaltable$outdoor_activity = k[,3]
@@ -183,3 +189,32 @@ while (i<j) {
   i=i+1
 }
 #################################
+#preparing for location
+k=table(timetable$timegroup, timetable$location)
+finaltable$bathroom = k[,1]
+finaltable$bedroom = k[,2]
+finaltable$kitchen = k[,3]
+finaltable$livingoom = k[,4]
+finaltable$outdoor = k[,5]
+finaltable$pending = k[,6]
+
+i=1
+j=49
+while (i<j) {
+  h <-finaltable[i,7:12]
+  if (which.max(h)==1) finaltable$location[i]="bathroom"
+  if (which.max(h)==2) finaltable$location[i]="bedroom"
+  if (which.max(h)==3) finaltable$location[i]="kitchen"
+  if (which.max(h)==4) finaltable$location[i]="livingroom"
+  if (which.max(h)==5) finaltable$location[i]="outdoor"
+  if (which.max(h)==6) finaltable$location[i]="pending"
+  i=i+1
+}
+#####################################
+finaltable <-finaltable[,c(1,6,13)]
+finaltable$week <-"Thursday"
+finaltable$date <-"2016-11-24"
+#####################################
+finaltable1 <-finaltable
+setwd("/Volumes/HAONAN/finaldata/")
+write.csv(finaltable,"Nov24.csv", row.names = TRUE)
