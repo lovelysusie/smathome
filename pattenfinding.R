@@ -218,3 +218,29 @@ finaltable$date <-"2016-11-24"
 finaltable1 <-finaltable
 setwd("/Volumes/HAONAN/finaldata/")
 write.csv(finaltable,"Nov24.csv", row.names = TRUE)
+#########preparing data
+finaltable <-read.csv(file.choose())
+finaltable1 <-read.csv(file.choose())
+finaltable1 <-rbind(finaltable, finaltable1)
+finaltable <-read.csv(file.choose())
+finaltable1 <-rbind(finaltable1, finaltable)
+
+
+finaltable1 <-finaltable1[,2:5]
+#########################################################
+library(arules)
+library(arulesViz)
+
+patterns = random.patterns(nItems = 1000)
+summary(patterns)
+trans = random.transactions(nItems = 1000, nTrans = 1000, method = "agrawal",  patterns = patterns)
+image(trans)
+
+
+rules <- apriori(finaltable,
+                 parameter = list(minlen=2, supp=0.005, conf=0.8),
+                 appearance = list(rhs=c("status=lying", "status=outdoor"),
+                                   default="lhs"),
+                 control = list(verbose=F))
+rules.sorted <- sort(rules, by="lift")
+inspect(rules.sorted)
