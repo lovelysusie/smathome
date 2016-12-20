@@ -1,11 +1,10 @@
-library(dplyr)
 library(lubridate)
 library(dplyr)
 library(data.table)
 library(sqldf)
 
 hdbdata <-read.csv(file.choose())
-hdbdata <-filter(hdbdata, hdbdata$IoTHub=="{u'ConnectionDeviceId': u'SG-04-avent001', u'StreamId': None, u'MessageId': None, u'ConnectionDeviceGenerationId': u'636147895634468152', u'EnqueuedTime': u'0001-01-01T00:00:00.0000000', u'CorrelationId': None}")
+hdbdata <-filter(hdbdata, hdbdata$IoTHub.ConnectionDeviceId=="SG-04-avent001")
 
 hdbdata$time <-ymd_hms(hdbdata$EventProcessedUtcTime)
 hdbdata$time <-hdbdata$time+28800
@@ -18,7 +17,7 @@ calendar <-table(hdbdata$date)
 calendar <-data.frame(calendar)
 names(calendar) <-c("date","freq")
 
-day1 <-filter(hdbdata, hdbdata$date=="2016-11-24")
+day1 <-filter(hdbdata, hdbdata$date=="2016-12-02")
 bedroom <-filter(day1, day1$taskLocation=="Bedroom" & day1$name=="movement")
 timetable <-table(bedroom$time)
 timetable <-data.frame(timetable)
@@ -30,6 +29,7 @@ test <-"2016-09-01 23:59:00"
 test <-ymd_hms(test)
 timeline <-seq(timeline, test, by=60)
 head(timeline)
+
 timeline <-format(timeline,"%H:%M")
 timeline <-data.frame(timeline)
 timeline <-sqldf("SELECT * FROM timeline LEFT OUTER JOIN timetable ON timeline.timeline=timetable.time")
@@ -66,19 +66,30 @@ timeline <-sqldf("SELECT * FROM timeline LEFT OUTER JOIN timetable ON timeline.t
 timeline <-timeline[,-5]
 names(timeline)[5] <-"kitchen"
 
+#########
+Store_Room <-filter(day1, day1$taskLocation=="Store Room"&day1$name=="movement")
+timetable <-table(Store_Room$time)
+timetable <-data.frame(timetable)
+names(timetable) <-c("time", "freq")
+
+timeline <-sqldf("SELECT * FROM timeline LEFT OUTER JOIN timetable ON timeline.timeline=timetable.time")
+timeline <-timeline[,-6]
+names(timeline)[6] <-"storeroom"
 ##########
 outtime <-filter(day1, day1$taskName=="alert_button"&day1$name=="proximity")
-timetable <-outtime[,c(7,11)]
+timetable <-outtime[,c(17,4)]
 
 timeline <-sqldf("SELECT * FROM timeline LEFT OUTER JOIN timetable ON timeline.timeline=timetable.time")
 timeline <-timeline[,-7]
-names(timeline)[6] <-"outtime"
+names(timeline)[7] <-"outtime"
 ###################################################
 timetable <-timeline
 timetable$bedroom[is.na(timetable$bedroom)] <-0
 timetable$bathroom[is.na(timetable$bathroom)] <-0
 timetable$livingroom[is.na(timetable$livingroom)] <-0
 timetable$kitchen[is.na(timetable$kitchen)]<-0
+timetable$storeroom[is.na(timetable$storeroom)]<-0
+
 timetable$outtime[timetable$outtime=="false"] <-"out"
 timetable$outtime[timetable$outtime=="true"] <-"in"
 goingout <-which(timetable$outtime=="in", arr.ind=TRUE)
@@ -89,58 +100,38 @@ while (j>0) {
   timetable <-timetable[-(goingout[j]:backin[j]),]
   j=j-1
 }
-timetable <-timetable[,-6]
+timetable <-timetable[,-7]
 #######set the tasklocation column
 i=1
 j=nrow(timetable)+1
 while (i<j) {
-  k=timetable[i,(2:5)]
+  k=timetable[i,(2:6)]
   if (max(k)!=0) h=which.max(k) else timetable$location[i] = "pending"
   if (max(k)!=0 & h==1) timetable$location[i] = "bedroom" 
   if (max(k)!=0 & h==2) timetable$location[i] = "bathroom"
   if (max(k)!=0 & h==3) timetable$location[i] = "livingroom"
   if (max(k)!=0 & h==4) timetable$location[i] = "kitchen"
+  if (max(k)!=0 & h==5) timetable$location[i] = "storeroom"
   i=i+1
 }
 #######set the status column
-k = which(timetable$location=="pending", arr.ind = TRUE)
+# k = which(timetable$location=="pending", arr.ind = TRUE)
 timetable$status <-"lying"
 timetable$status[timetable$location!="pending"]="awake"
 #######
 timeline <-sqldf("SELECT * FROM timeline LEFT OUTER JOIN timetable ON timeline.timeline=timetable.timeline")
-timeline <-timeline[,-c(7:11)]
 
-timeline$location[1:196] <-"bedroom"
-timeline$location[202:302] <-"bedroom"
-timeline$location[314:414] <-"bedroom"
-#timeline$location[732] <-"bedroom"
-timeline$location[1440] <-"bedroom"
-timeline$location[1045:1051] <-"bedroom"
-timeline$location[1053:1055] <-"bedroom"
-timeline$location[1063:1078] <-"bedroom"
-timeline$location[1134:1152] <-"bedroom"
-timeline$location[1186:1187] <-"bedroom"
-timeline$location[1189:1239] <-"bedroom"
-timeline$location[1271:1274] <-"bedroom"
-timeline$location[1282:1320] <-"bedroom"
-timeline$location[1326:1436] <-"bedroom"
+timeline <-timeline[,-c(8:13)]
+timeline$location[is.na(timeline$location)] <-"outdoor"
+timeline$status[is.na(timeline$status)] <-"outdoor activity"
 
+timeline$location[timeline$location=="pending"] <-NA
 
-
-timeline$location[756:771] <-"livingroom"
-timeline$location[780:785] <-"livingroom"
-timeline$location[1153:1183] <-"livingroom"
-timeline$location[1242:1269] <-"livingroom"
-
-timeline$status[424:425] <-"toilet"
-timeline$location[424:425] <-"bathroom"
 
 ##########################
 timetable <-timeline[,c(1,7:8)]
 
 #set out time as out
-timetable$location[is.na(timetable$location)] <-"outdoor"
-timetable$status[is.na(timetable$status)] <-"outdoor activity"
 timetable$timegroup <-timetable$timeline
 timetable$timegroup <-as.character(timetable$timegroup)
 substr(timetable$timegroup[1:20], 4, 5)
@@ -231,15 +222,14 @@ finaltable1 <-finaltable1[,2:5]
 library(arules)
 library(arulesViz)
 
-patterns = random.patterns(nItems = 1000)
-summary(patterns)
-trans = random.transactions(nItems = 1000, nTrans = 1000, method = "agrawal",  patterns = patterns)
-image(trans)
-
+#patterns = random.patterns(nItems = 1000)
+#summary(patterns)
+#trans = random.transactions(nItems = 1000, nTrans = 1000, method = "agrawal",  patterns = patterns)
+#image(trans)
 
 rules <- apriori(finaltable,
                  parameter = list(minlen=2, supp=0.005, conf=0.8),
-                 appearance = list(rhs=c("status=lying", "status=outdoor"),
+                 appearance = list(rhs=c("location=kitchen"),
                                    default="lhs"),
                  control = list(verbose=F))
 rules.sorted <- sort(rules, by="lift")
