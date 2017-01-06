@@ -299,7 +299,7 @@ while (i <j){
 
 #setting the sleeping time as 22:00 first.
 
-b$sleep <-paste(b$date, "20:29:59")
+b$sleep <-paste(b$date, "21:29:59")
 b$sleep <-strptime(b$sleep, "%Y-%m-%d %H:%M:%S")
 #find the real sleep time
 i=2
@@ -370,6 +370,6 @@ help(match)
 
 ##################################################
 setwd("/Users/Susie/Desktop")
-write.csv(b, "HDB12_wakeup.csv", row.names = FALSE)
+write.csv(b, "HDB11_wakeup.csv", row.names = FALSE)
 write.csv(night.up1, "HDB02_nightup.csv" , row.names = FALSE)
 write.csv(nightuptable,"matching.csv", row.names = FALSE)
