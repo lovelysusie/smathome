@@ -2,6 +2,7 @@ library(dplyr)
 library(chron)
 library(sqldf)
 library(lubridate)
+library(gridExtra)
 a <-read.csv(file.choose())
 
 
@@ -23,16 +24,16 @@ a$date <-as.Date(a$date)
 
 
 ##################
-calender <-table(a$date)
-calender <-data.frame(calender)
-calender$Var1 <-as.Date(calender$Var1)
-day <-filter(a, a$date==calender$Var1[1])
+calendar <-table(a$date)
+calendar <-data.frame(calendar)
+calendar$Var1 <-as.Date(calendar$Var1)
+day <-filter(a, a$date==calendar$Var1[1])
 
-test1 <-calender$Var1[1]
+test1 <-calendar$Var1[1]
 test1 <-as.character(test1)
 test1 <-paste(test1, "00:00:00")
 test1 <-strptime(test1, "%Y-%m-%d %H:%M:%S")
-test2 <-calender$Var1[1]
+test2 <-calendar$Var1[1]
 test2 <-as.character(test2)
 test2 <-paste(test2, "23:55:00")
 test2 <-strptime(test2, "%Y-%m-%d %H:%M:%S")
@@ -107,21 +108,21 @@ newdata1 <-newdata
 
 #######################
 
-names(calender)[1] <-"date"
+names(calendar)[1] <-"date"
 
 ###########the second and the other day
 
 j=2
-k=nrow(calender)+1
+k=nrow(calendar)+1
 while (j<k) {
   
-  day <-filter(a, a$date==calender$date[j])
+  day <-filter(a, a$date==calendar$date[j])
   
-  test1 <-calender$date[j]
+  test1 <-calendar$date[j]
   test1 <-as.character(test1)
   test1 <-paste(test1, "00:00:00")
   test1 <-strptime(test1, "%Y-%m-%d %H:%M:%S")
-  test2 <-calender$date[j]
+  test2 <-calendar$date[j]
   test2 <-as.character(test2)
   test2 <-paste(test2, "23:55:00")
   test2 <-strptime(test2, "%Y-%m-%d %H:%M:%S")
@@ -235,7 +236,7 @@ while (i<nrow(newdata)) {
 
 #step 1, set 8:30 as a general wake up time
 
-b <-calender
+b <-calendar
 
 b$`wake up` <-paste(b$date, "07:30:01")
 b$`wake up` <-strptime(b$`wake up`, "%Y-%m-%d %H:%M:%S")
@@ -251,11 +252,11 @@ series <-newdata
 series$date <-as.character(series$time)
 series$date <-substr(series$date, 1,10)
 series$date <-as.Date(series$date)
-calender$date <-as.Date(calender$date)
+calendar$date <-as.Date(calendar$date)
 
 #get the real get up time
 
-series1 <-filter(series, series$date==calender$date[1])
+series1 <-filter(series, series$date==calendar$date[1])
 
 starting <-filter(series1, series1$status1=="start")
 ending <-filter(series1, series1$status2=="end")
@@ -274,9 +275,9 @@ if (b$`wake up`[1] <flag) b$`wake up`[1] = head(series1$time,1)
 ###
 
 i=2
-j=nrow(calender)+1
+j=nrow(calendar)+1
 while (i <j){
-  series1 <-filter(series, series$date==calender$date[i])
+  series1 <-filter(series, series$date==calendar$date[i])
   starting <-filter(series1, series1$status1=="start")
   ending <-filter(series1, series1$status2=="end")
   
@@ -299,13 +300,13 @@ while (i <j){
 
 #setting the sleeping time as 22:00 first.
 
-b$sleep <-paste(b$date, "21:29:59")
+b$sleep <-paste(b$date, "20:59:59")
 b$sleep <-strptime(b$sleep, "%Y-%m-%d %H:%M:%S")
 #find the real sleep time
 i=2
-j=nrow(calender)+2
+j=nrow(calendar)+2
 while (i <j){
-  series1 <-filter(series, series$date==calender$date[i]|series$date==calender$date[i-1])
+  series1 <-filter(series, series$date==calendar$date[i]|series$date==calendar$date[i-1])
   
   
   starting <-filter(series1, series1$status1=="start")
@@ -316,7 +317,7 @@ while (i <j){
   starting <-filter(starting, starting$time>b$sleep[i-1] & starting$time <b$`wake up`[i])
   
   b$sleep[i-1] <-head(starting$time,1)
-  series1 <-filter(series, series$date==calender$date[i-1])
+  series1 <-filter(series, series$date==calendar$date[i-1])
   if (nrow(starting)==0) b$sleep[i-1] = tail(series1$time,1)
   i=i+1
 }
@@ -324,16 +325,23 @@ while (i <j){
 ##################################################
 ###elemenate the NA of wakeup
 i=1
-while (i<nrow(calender)) {
-  series1 <-filter(series, series$date==calender$date[i])
+while (i<nrow(calendar)) {
+  series1 <-filter(series, series$date==calendar$date[i])
   if(nrow(series1)==0) b$`wake up`[i]=NA 
   if(nrow(series1)==0) b$sleep[i]=NA
   i=i+1
 }
 
+test <-"2016-11-17 20:40:00"
+test <-strptime(test, "%Y-%m-%d %H:%M:%S")
+test <-as.POSIXlt(test)
+b$sleep[2] <-test
+
 #################################################
+b$uptimes <-0
+
 i=2
-series1 <-filter(series, series$date==calender$date[i]|series$date==calender$date[i-1])
+series1 <-filter(series, series$date==calendar$date[i]|series$date==calendar$date[i-1])
 
 starting <-filter(series1, series1$status1=="start")
 ending <-filter(series1, series1$status2=="end")
@@ -342,12 +350,14 @@ ending <-filter(series1, series1$status2=="end")
 ending <-filter(ending, ending$time>b$sleep[i-1] & ending$time<b$'wake up'[i])
 starting <-filter(starting, starting$time>b$sleep[i-1] & starting$time <b$'wake up'[i])
 
-night.up1<-rbind(head(ending,1),starting)
+#night.up1<-rbind(head(ending,1),starting)
+night.up1 <-ending
+b$uptimes[i-1]<-nrow(ending)
 
 i=3
 j=nrow(b)+1
 while (i<j) {
-  series1 <-filter(series, series$date==calender$date[i]|series$date==calender$date[i-1])
+  series1 <-filter(series, series$date==calendar$date[i]|series$date==calendar$date[i-1])
   
   starting <-filter(series1, series1$status1=="start")
   ending <-filter(series1, series1$status2=="end")
@@ -355,21 +365,110 @@ while (i<j) {
   
   ending <-filter(ending, ending$time>b$sleep[i-1] & ending$time<b$'wake up'[i])
   starting <-filter(starting, starting$time>b$sleep[i-1] & starting$time <b$'wake up'[i])
-  night.up<-rbind(head(ending,1),starting)
+  #night.up<-rbind(head(ending,1),starting)
+  night.up <-ending
   night.up1 <-rbind(night.up1, night.up)
+  b$uptimes[i-1]<-nrow(ending)
   i=i+1
 }
 
 night.up1 <-night.up1[,-(2:9)]
+
+'''
+i=1
+j=nrow(night.up1)
+while (i<j) {
+  if (difftime(night.up1$time[i], night.up1$time[i+1], units("mins"))<30) {
+    night.up1$time[i]=night.up1$time[i+1]
+  }
+  i=i+1
+}
+'''
+
+table(night.up1$date)
+
 ###########
+
 nightuptable <-data.frame(table(night.up1$date))
 b$nightup<-0
 nightuptable$Var1 <-as.Date(nightuptable$Var1)
 names(nightuptable) <-c("date", "times")
 help(match)
 
+###########
+#wakeup at night times
+gg.gauge <- function(pos,breaks=c(0,20,40,60,80,100)) {
+  require(ggplot2)
+  get.poly <- function(a,b,r1=0.5,r2=1.0) {
+    th.start <- pi*(1-a/100)
+    th.end   <- pi*(1-b/100)
+    th       <- seq(th.start,th.end,length=100)
+    x        <- c(r1*cos(th),rev(r2*cos(th)))
+    y        <- c(r1*sin(th),rev(r2*sin(th)))
+    return(data.frame(x,y))
+  }
+  ggplot()+ 
+    geom_polygon(data=get.poly(breaks[1],breaks[2]),aes(x,y),fill="olivedrab4")+
+    geom_polygon(data=get.poly(breaks[2],breaks[3]),aes(x,y),fill="olivedrab3")+
+    geom_polygon(data=get.poly(breaks[3],breaks[4]),aes(x,y),fill="olivedrab2")+
+    geom_polygon(data=get.poly(breaks[4],breaks[5]),aes(x,y),fill="orange1")+
+    geom_polygon(data=get.poly(breaks[5],breaks[6]),aes(x,y),fill="orangered")+
+    geom_polygon(data=get.poly(pos,pos+1,0.2),aes(x,y))+
+    geom_text(data=as.data.frame(breaks), size=6, fontface="bold", vjust=0,
+              aes(x=1.1*cos(pi*(1-breaks/100)),y=1.1*sin(pi*(1-breaks/100)),label=c("0","1","2","3","4","5")))+
+    annotate("text",x=0,y=0,label="2.47times",vjust=0,size=10,fontface="bold")+
+    coord_fixed()+
+    theme_bw()+
+    theme(axis.text=element_blank(),
+          axis.title=element_blank(),
+          axis.ticks=element_blank(),
+          panel.grid=element_blank(),
+          panel.border=element_blank())+
+    ggtitle("average frequency of wakeup at night(1106-0109)")+
+    theme(plot.title = element_text(face="bold",size=17))
+}
+plot1<-gg.gauge(47,breaks=c(0,20,40,60,80,100))
+
+###########
+# calculate the sleeping time
+sleepingHours <-data.frame(sleep=b$sleep[1:54], wakeup=b$`wake up`[2:55])
+sleepingHours$hours <-difftime(sleepingHours$wakeup, sleepingHours$sleep, units = "hours")
+  
+gg.gauge <- function(pos,breaks=c(0,20,40,60,80,100)) {
+  require(ggplot2)
+  get.poly <- function(a,b,r1=0.5,r2=1.0) {
+    th.start <- pi*(1-a/100)
+    th.end   <- pi*(1-b/100)
+    th       <- seq(th.start,th.end,length=100)
+    x        <- c(r1*cos(th),rev(r2*cos(th)))
+    y        <- c(r1*sin(th),rev(r2*sin(th)))
+    return(data.frame(x,y))
+  }
+  ggplot()+ 
+    geom_polygon(data=get.poly(breaks[1],breaks[2]),aes(x,y),fill="olivedrab4")+
+    geom_polygon(data=get.poly(breaks[2],breaks[3]),aes(x,y),fill="olivedrab3")+
+    geom_polygon(data=get.poly(breaks[3],breaks[4]),aes(x,y),fill="olivedrab2")+
+    geom_polygon(data=get.poly(breaks[4],breaks[5]),aes(x,y),fill="orange1")+
+    geom_polygon(data=get.poly(breaks[5],breaks[6]),aes(x,y),fill="orangered")+
+    geom_polygon(data=get.poly(pos,pos+1,0.2),aes(x,y))+
+    geom_text(data=as.data.frame(breaks), size=6, fontface="bold", vjust=0,
+              aes(x=1.1*cos(pi*(1-breaks/100)),y=1.1*sin(pi*(1-breaks/100)),label=c("10h","9h","8h","7h","6h","5h")))+
+    annotate("text",x=0,y=0,label="8hrs45min",vjust=0,size=8,fontface="bold")+
+    coord_fixed()+
+    theme_bw()+
+    theme(axis.text=element_blank(),
+          axis.title=element_blank(),
+          axis.ticks=element_blank(),
+          panel.grid=element_blank(),
+          panel.border=element_blank())+
+    ggtitle("average sleeping time(1106-0109)")+
+    theme(plot.title = element_text(face="bold",size=17))
+}
+plot2 <-gg.gauge(35,breaks=c(0,20,40,60,80,100))
+
+
 ##################################################
 setwd("/Users/Susie/Desktop")
-write.csv(b, "HDB11_wakeup.csv", row.names = FALSE)
-write.csv(night.up1, "HDB02_nightup.csv" , row.names = FALSE)
+write.csv(b, "Adventis_wakeup_Jan09.csv", row.names = FALSE)
+write.csv(night.up1, "Adventis_nightup.csv" , row.names = FALSE)
 write.csv(nightuptable,"matching.csv", row.names = FALSE)
