@@ -17,7 +17,7 @@ calendar <-table(hdbdata$date)
 calendar <-data.frame(calendar)
 names(calendar) <-c("date","freq")
 
-day1 <-filter(hdbdata, hdbdata$date=="2016-12-02")
+day1 <-filter(hdbdata, hdbdata$date=="2016-11-26")
 bedroom <-filter(day1, day1$taskLocation=="Bedroom" & day1$name=="movement")
 timetable <-table(bedroom$time)
 timetable <-data.frame(timetable)
@@ -68,16 +68,19 @@ names(timeline)[5] <-"kitchen"
 
 #########
 Store_Room <-filter(day1, day1$taskLocation=="Store Room"&day1$name=="movement")
-timetable <-table(Store_Room$time)
+if (nrow(Store_Room)==0) timeline$storeroom=NA
+
+if (nrow(Store_Room)>0) {timetable <-table(Store_Room$time)
 timetable <-data.frame(timetable)
 names(timetable) <-c("time", "freq")
 
 timeline <-sqldf("SELECT * FROM timeline LEFT OUTER JOIN timetable ON timeline.timeline=timetable.time")
 timeline <-timeline[,-6]
-names(timeline)[6] <-"storeroom"
+names(timeline)[6] <-"storeroom"}
+
 ##########
 outtime <-filter(day1, day1$taskName=="alert_button"&day1$name=="proximity")
-timetable <-outtime[,c(17,4)]
+timetable <-outtime[,c(17,15)]
 
 timeline <-sqldf("SELECT * FROM timeline LEFT OUTER JOIN timetable ON timeline.timeline=timetable.time")
 timeline <-timeline[,-7]
@@ -104,9 +107,10 @@ timetable <-timetable[,-7]
 #######set the tasklocation column
 i=1
 j=nrow(timetable)+1
+timetable$location = "pending"
 while (i<j) {
-  k=timetable[i,(2:6)]
-  if (max(k)!=0) h=which.max(k) else timetable$location[i] = "pending"
+  k=timetable[i,(2:5)]
+  if (max(k)!=0) h=which.max(k) else h=0
   if (max(k)!=0 & h==1) timetable$location[i] = "bedroom" 
   if (max(k)!=0 & h==2) timetable$location[i] = "bathroom"
   if (max(k)!=0 & h==3) timetable$location[i] = "livingroom"
@@ -125,16 +129,49 @@ timeline <-timeline[,-c(8:13)]
 timeline$location[is.na(timeline$location)] <-"outdoor"
 timeline$status[is.na(timeline$status)] <-"outdoor activity"
 
-timeline$location[timeline$location=="pending"] <-NA
+#find out last location in each min
+day1 <-filter(day1, day1$name=="movement")
+day1$taskLocation=as.character(day1$taskLocation)
+i=1
+j=nrow(timeline)
+while (i<j) {
+  if (timeline$location[i]!="pending"&timeline$location[i+1]=="pending") {
+    a=filter(day1, day1$time==timeline$timeline[i])
+    a=tail(a,1)
+    a=a$taskLocation
+  timeline$location[i]=a}
+  i=i+1
+}
 
+#starnderlize the locaiton
+i=1 ;j=nrow(timeline)+1
+while (i<j) {
+  if (timeline$location[i]=="Kitchen") timeline$location[i]<-"kitchen"
+  if (timeline$location[i]=="Bedroom") timeline$location[i]<-"bedroom"
+  if (timeline$location[i]=="Living Room") timeline$location[i]<-"livingroom"
+  if (timeline$location[i]=="Bathroom") timeline$location[i]<-"bathroom"
+  i=i+1
+}
+
+# find out the location in each min
+a=filter(timeline, timeline$location=="Bedroom")
+
+
+timeline$location[timeline$location=="pending"] <-NA
+replace_na_with_last<-function(x,a=!is.na(x)){
+  x[which(a)[c(1,1:sum(a))][cumsum(a)+1]]
+}
+timeline$location <-replace_na_with_last(timeline$location)
+
+timeline$status[timeline$location=="kitchen"&timeline$status=="lying"]="sitting"
+timeline$status[timeline$location=="bathroom"&timeline$status=="lying"]="toilet"
 
 ##########################
-timetable <-timeline[,c(1,7:8)]
+timetable <-timeline[,c(1,8:9)]
 
 #set out time as out
 timetable$timegroup <-timetable$timeline
 timetable$timegroup <-as.character(timetable$timegroup)
-substr(timetable$timegroup[1:20], 4, 5)
 i=1
 j=nrow(timetable)+1
 while (i<j) {
@@ -165,7 +202,7 @@ finaltable$toilet = k[,4]
 i=1
 j=49
 while (i<j) {
-  h <-finaltable[i,2:5]
+  h <-finaltable[i,2:4]
   if (which.max(h)==1) finaltable$status[i]="awake"
   if (which.max(h)==2) finaltable$status[i]="lying"
   if (which.max(h)==3) finaltable$status[i]="outdoor"
@@ -187,37 +224,28 @@ finaltable$bedroom = k[,2]
 finaltable$kitchen = k[,3]
 finaltable$livingoom = k[,4]
 finaltable$outdoor = k[,5]
-finaltable$pending = k[,6]
+
 
 i=1
 j=49
 while (i<j) {
-  h <-finaltable[i,7:12]
+  h <-finaltable[i,7:11]
   if (which.max(h)==1) finaltable$location[i]="bathroom"
   if (which.max(h)==2) finaltable$location[i]="bedroom"
   if (which.max(h)==3) finaltable$location[i]="kitchen"
   if (which.max(h)==4) finaltable$location[i]="livingroom"
   if (which.max(h)==5) finaltable$location[i]="outdoor"
-  if (which.max(h)==6) finaltable$location[i]="pending"
   i=i+1
 }
 #####################################
-finaltable <-finaltable[,c(1,6,13)]
-finaltable$week <-"Thursday"
-finaltable$date <-"2016-11-24"
+finaltable <-finaltable[,c(1,6,12)]
+finaltable$week <-"Saturday"
+finaltable$date <-"2016-11-26"
 #####################################
 finaltable1 <-finaltable
-setwd("/Volumes/HAONAN/finaldata/")
-write.csv(finaltable,"Nov24.csv", row.names = TRUE)
-#########preparing data
-finaltable <-read.csv(file.choose())
-finaltable1 <-read.csv(file.choose())
-finaltable1 <-rbind(finaltable, finaltable1)
-finaltable <-read.csv(file.choose())
-finaltable1 <-rbind(finaltable1, finaltable)
+setwd("/Users/Susie/Desktop")
+write.csv(finaltable,"Nov26.csv", row.names = TRUE)
 
-
-finaltable1 <-finaltable1[,2:5]
 #########################################################
 library(arules)
 library(arulesViz)
@@ -234,3 +262,13 @@ rules <- apriori(finaltable,
                  control = list(verbose=F))
 rules.sorted <- sort(rules, by="lift")
 inspect(rules.sorted)
+###########################################################
+x[which(a)[c(1,1:sum(a))][cumsum(a)+1]]
+
+
+x =c(1,NA,NA,NA,3,4,5,NA,5,5,5,NA,NA,NA,6)
+a
+help("cumsum")
+cumsum(a)
+which(a)[c(1,1:sum(a))][cumsum(a)+1]
+which(a)
