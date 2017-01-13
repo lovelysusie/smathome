@@ -515,7 +515,7 @@ while (y<x) {
 
 
 setwd("/Users/Susie/Desktop")
-write.csv(finaltable1,"adv01_pattern.csv", row.names = TRUE)
+write.csv(outtime1,"adv01_goingout.csv", row.names = TRUE)
 
 #########################################################
 library(arules)
@@ -538,6 +538,72 @@ rules <- apriori(finaltable,
 rules.sorted <- sort(rules, by="support")
 inspect(rules.sorted)
 
+###########################################################
+y=2
+day1 <-filter(hdbdata, hdbdata$date==calendar$date[y])
+outtime <-filter(day1, day1$taskName=="alert_button"&day1$name=="proximity")
+outtime1 <-outtime
+
+y=3
+while(y<nrow(calendar)){
+  day1 <-filter(hdbdata, hdbdata$date==calendar$date[y])
+  outtime <-filter(day1, day1$taskName=="alert_button"&day1$name=="proximity")
+  outtime1 <-rbind(outtime1,outtime)
+  y=y+1
+}
+outtime <-outtime1[,-c(1:14)]
+goingout <-filter(outtime, outtime$value=="false")
+backin <-filter(outtime,outtime$value=="true")
+
+outtime<-data.frame(goingout=goingout$time, backin=backin$time, date=goingout$date)
+outtime$goingout <-as.character(outtime$goingout)
+outtime$backin <-as.character(outtime$backin)
+
+outtime$goingout <-paste(outtime$goingout,":00")
+outtime$backin <-paste(outtime$backin,":00")
+outtime$goingout <-paste("2016-11-15",outtime$goingout)
+outtime$backin <-paste("2016-11-15",outtime$backin)
+outtime$goingout <-ymd_hms(outtime$goingout)
+outtime$backin <-ymd_hms(outtime$backin)
+
+outtime <-filter(outtime, difftime(outtime$backin,outtime$goingout, units = "mins")>30)
+test <-"2016-11-15 12:59:59";test <-ymd_hms(test)
+am <-filter(outtime, outtime$goingout<test)
+test <-"2016-11-15 11:59:59";test <-ymd_hms(test)
+pm <-filter(outtime, outtime$goingout>test)
+outtime1 <-outtime
+outtime1$goingout <-format(outtime1$goingout,"%H:%M")
+outtime1$backin <-format(outtime1$backin,"%H:%M")
+am$goingout <-format(am$goingout,"%H:%M")
+am$backin <-format(am$backin,"%H:%M")
+pm$goingout<-format(pm$goingout,"%H:%M")
+pm$backin <-format(pm$backin, "%H:%M")
+
+write.csv(pm, "pm.csv", row.names = FALSE)
+###########################################################
+newdata <-filter(finaltable1, finaltable1$date==pm$date[1])
+newdata1 <-newdata
+
+i=2;j=nrow(pm)+1
+while(i<j) {
+  newdata <-filter(finaltable1, finaltable1$date==pm$date[i])
+  newdata1 <-rbind(newdata1,newdata)
+  i=i+1
+}
+###########################################################
+newdata1 <-newdata1[,-4]
+newdata1$status <-as.factor(newdata1$status)
+newdata1$location <-as.factor(newdata1$location)
+newdata1$week <-as.factor(newdata1$week)
+newdata <-newdata1[,-4]
+names(newdata)[1]<-"time"
+rules <- apriori(newdata,
+                 parameter = list(minlen=2, supp=0.0002, conf=0.03),
+                 appearance = list(rhs=c("time=00:00"),
+                                   default="lhs"),
+                 control = list(verbose=F))
+rules.sorted <- sort(rules, by="confidence")
+inspect(rules.sorted)
 ###########################################################
 x[which(a)[c(1,1:sum(a))][cumsum(a)+1]]
 
