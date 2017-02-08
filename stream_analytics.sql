@@ -1,27 +1,32 @@
-WITH adventis01 AS (
-  SELECT
-       IoTHub.ConnectionDeviceId AS hubid,
-       EventProcessedUtcTime AS eventtime,
-       taskLocation,
-       LAG([EventProcessedUtcTime]) OVER (LIMIT DURATION(hour, 3)) as previousTime,
-       LAG([taskLocation]) OVER (LIMIT DURATION(hour, 3)) as formertaskLocation
-  FROM
-      hdbinput TIMESTAMP BY EventProcessedUtcTime
-      WHERE name = 'movement' AND taskName = 'movement' 
+WITH fivemintable AS(
+ SELECT
+        System.TimeStamp AS eventtime,
+        IoTHub.ConnectionDeviceId AS hubid,
+        taskLocation,
+        taskName,
+        name,
+        address,
+        COUNT(value) AS 'value'
+    FROM
+        gateway TIMESTAMP BY EventProcessedUtcTime
+    WHERE
+        name = 'movement' AND taskName = 'movement'
+    GROUP BY
+        IoTHub.ConnectionDeviceId,
+        taskLocation,
+        taskName,
+        name,
+        address,
+        TumblingWindow(minute, 1)
 )
 
 SELECT 
-      tasklocation,
-      hubid, 
-      System.TimeStamp AS Endtime, 
-      SUM(DATEDIFF(second, previousTime, EventProcessedUtcTime)) AS timegap
-      FROM adventis01 
-      WHERE
-        [taskLocation] = 'Bathroom' AND formertaskLocation = 'Bathroom' 
-        AND DATEDIFF(second, previousTime, EventProcessedUtcTime) > 10
-    GROUP BY TumblingWindow(minute, 1)
-    
+    hubid,
+    taskLocation,
+    eventtime,
+    LAG([eventtime]) OVER (LIMIT DURATION(hour, 3)) as previousTime,
+    LAG([taskLocation]) OVER (LIMIT DURATION(hour, 3)) as formertaskLocation
+FROM fivemintable 
+WHERE [taskLocation] = 'Bathroom' AND LAG([taskLocation]) OVER (LIMIT DURATION(hour, 3)) = 'Bathroom' 
+       AND DATEDIFF(minute, LAG([eventtime]) OVER (LIMIT DURATION(hour, 3)), eventtime) > 1
 
-GROUP BY
-        IoTHub.ConnectionDeviceId
-      
