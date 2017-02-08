@@ -23,6 +23,7 @@ if (length(args) < 2) {
   
 xdfOutFile2 <- file.path(filePrefix, "testadfxdf2")
 testDataSplitXdfFile2 <- file.path(filePrefix, "testadfSplitXdf2")
+anythingIlike <-file.path(filePrefix,"anythingIlike")
 
 testDataClasses2 <- c(starttime = "character",endtime = "character",
                         hubid = "character",address = "character", 
@@ -39,6 +40,11 @@ testDataDS2 <- RxTextData(file = inputFile2, fileSystem = hdfsFS2, delimiter = "
 
 xdfOut2 <- RxXdfData(file = xdfOutFile2, fileSystem = hdfsFS2)
 
+######### 结尾的部分
+# 设置路径
+#outputDS2 <- RxTextData(outputFile2, missingValueString = "", firstRowIsColNames = TRUE, quoteMark = "", fileSystem = hdfsFS2)
+# 输出指令
+#rxDataStep(inData = testDataSplitXdf2, outFile = outputDS2, overwrite = TRUE)
 
 
 testDataDSXdf2 <- rxImport(inData = testDataDS2, outFile = xdfOut2,
@@ -71,7 +77,7 @@ testDataDSXdf2 <-rxDataStep(inData = testDataDSXdf2,
            rowSelection = (tasklocation == 'Bedroom'),
            overwrite = TRUE)
 # 等一下回来再看看这里
-
+partOne <- RxXdfData(file = anythingIlike, fileSystem = hdfsFS2)
 # as for adventis01
 partOne <- rxDataStep(inData = testDataDSXdf2, 
                         rowSelection = (tasklocation == "Bedroom" &
