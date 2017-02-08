@@ -11,23 +11,20 @@ if (length(args) < 2) {
 
 
 
-  outputFile <- args[2]
+  outputFile2 <- args[2]
 
-  inputFile  <- args[1]
+  inputFile2  <- args[1]
   #name of the final model object
   #tempLocalModelFile <- 'testadfmodel'
   filePrefix <- "/tmp"
   rxSetComputeContext(RxSpark(hdfsShareDir = "/tmp", consoleOutput=TRUE, executorMem="2g", executorCores = 2, driverMem="1g", executorOverheadMem="1g") )
-  hdfsFS <- RxHdfsFileSystem()
+  hdfsFS2 <- RxHdfsFileSystem()
 
   
+xdfOutFile2 <- file.path(filePrefix, "testadfxdf2")
+testDataSplitXdfFile2 <- file.path(filePrefix, "testadfSplitXdf2")
 
-
-
-xdfOutFile <- file.path(filePrefix, "testadfxdf")
-testDataSplitXdfFile <- file.path(filePrefix, "testadfSplitXdf")
-
-testDataClasses <- c(starttime = "character",endtime = "character",
+testDataClasses2 <- c(starttime = "character",endtime = "character",
                         hubid = "character",address = "character", 
                         tasklocation = "character",
                         name = "character", 
@@ -35,22 +32,23 @@ testDataClasses <- c(starttime = "character",endtime = "character",
                         value = "numeric" )
 
 
-testDataDS <- RxTextData(file = inputFile, fileSystem = hdfsFS, delimiter = ",", firstRowIsColNames = TRUE,
-                     colClasses = testDataClasses)
+testDataDS2 <- RxTextData(file = inputFile2, fileSystem = hdfsFS2, delimiter = ",", firstRowIsColNames = TRUE,
+                     colClasses = testDataClasses2)
 
 
 
-xdfOut <- RxXdfData(file = xdfOutFile, fileSystem = hdfsFS)
+xdfOut2 <- RxXdfData(file = xdfOutFile2, fileSystem = hdfsFS2)
 
 
 
-testDataDSXdf <- rxImport(inData = testDataDS, outFile = xdfOut,
+testDataDSXdf2 <- rxImport(inData = testDataDS2, outFile = xdfOut2,
                       createCompositeSet = TRUE,
                       overwrite = TRUE)
 
+rxGetInfo( data = testDataDSXdf2, getVarInfo = TRUE)
 
-
-testDataSplitXdf <- RxXdfData(file = testDataSplitXdfFile, fileSystem = hdfsFS);
+#set the path of output
+testDataSplitXdf2 <- RxXdfData(file = testDataSplitXdfFile2, fileSystem = hdfsFS2);
 
 
 
@@ -68,14 +66,14 @@ varsToDrop = c("name", "taskname","address","endtime")
 
 # outFile的设定在这里在这里
 
-rxDataStep(inData = testDataDSXdf, outFile = testDataSplitXdf,
+testDataDSXdf2 <-rxDataStep(inData = testDataDSXdf2, 
            varsToDrop = varsToDrop,
            rowSelection = (tasklocation == 'Bedroom'),
            overwrite = TRUE)
 # 等一下回来再看看这里
 
 # as for adventis01
-partOne <- rxDataStep(inData = testDataDSXdf, 
+partOne <- rxDataStep(inData = testDataDSXdf2, 
                         rowSelection = (tasklocation == "Bedroom" &
                                          hubid==unique(hubid)[2]), 
                         overwrite = TRUE)
@@ -171,7 +169,7 @@ if (nrow(ending)==0) sleepAnalysis$sleep[1] = tail(partTwo$time,1)
 
 ####################################################################################
 # as for adventis02
-partOne <- rxDataStep(inData = testDataDSXdf, 
+partOne <- rxDataStep(inData = testDataDSXdf2, 
                       rowSelection = (tasklocation == "Bedroom" &
                                         hubid==unique(hubid)[1]), 
                       overwrite = TRUE)
@@ -261,8 +259,8 @@ partTwo <-rxDataStep(inData = partOne,
 if (nrow(ending)==0) sleepAnalysis$sleep[2] = tail(partTwo$time,1)
 sleepAnalysis$address=c("SG-04-avent001","SG-04-avent002")
 
-rxDataStep(inData = sleepAnalysis, outFile = testDataSplitXdf, overwrite = TRUE)
+rxDataStep(inData = sleepAnalysis, outFile = testDataSplitXdf2, overwrite = TRUE)
 
 # 这里是结尾部分也是不可以动的！
-outputDS <- RxTextData(outputFile, missingValueString = "", firstRowIsColNames = TRUE, quoteMark = "", fileSystem = hdfsFS)
-rxDataStep(inData = testDataSplitXdf, outFile = outputDS, overwrite = TRUE)
+outputDS2 <- RxTextData(outputFile2, missingValueString = "", firstRowIsColNames = TRUE, quoteMark = "", fileSystem = hdfsFS2)
+rxDataStep(inData = testDataSplitXdf2, outFile = outputDS2, overwrite = TRUE)
