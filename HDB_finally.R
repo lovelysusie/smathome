@@ -465,6 +465,77 @@ gg.gauge <- function(pos,breaks=c(0,20,40,60,80,100)) {
     theme(plot.title = element_text(face="bold",size=17))
 }
 plot2 <-gg.gauge(35,breaks=c(0,20,40,60,80,100))
+#############################################################
+# sleeping calendar
+#"Mon", "Tue", "Wed", "Thu","Fri", "Sat","Sun"
+calendargraph <-data.frame(sleep=b$sleep[1:54], wakeup=b$`wake up`[2:55], 
+                           upfreq=b$uptimes[1:54],date=b$date[1:54])
+#set the color
+i=1
+j=nrow(calendargraph)+1
+while (i<j) {
+  if (calendargraph$upfreq[i]==0) calendargraph$color[i]="olivedrab4"
+  if (calendargraph$upfreq[i]==1) calendargraph$color[i]="olivedrab3"
+  if (calendargraph$upfreq[i]==2) calendargraph$color[i]="olivedrab2"
+  if (calendargraph$upfreq[i]==3) calendargraph$color[i]="olivedrab1"
+  if (calendargraph$upfreq[i]==4) calendargraph$color[i]="orange1"
+  if (calendargraph$upfreq[i]==5) calendargraph$color[i]="orangered"
+  i=i+1
+}
+# set the weekday
+calendargraph$weekday <-weekdays(calendargraph$date)
+i=1
+j=nrow(calendargraph)+1
+while (i<j) {
+  if (calendargraph$weekday[i]=="Monday") calendargraph$color[i]="olivedrab4"
+  if (calendargraph$upfreq[i]=="Tuesday") calendargraph$color[i]="olivedrab3"
+  if (calendargraph$upfreq[i]=="Wednesday") calendargraph$color[i]="olivedrab2"
+  if (calendargraph$upfreq[i]=="Thursday") calendargraph$color[i]="olivedrab1"
+  if (calendargraph$upfreq[i]=="Friday") calendargraph$color[i]="orange1"
+  if (calendargraph$upfreq[i]=="Saturday") calendargraph$color[i]="orangered"
+  i=i+1
+}
+
+
+
+Dec <-calendargraph[16:46,]
+# set the week number
+Dec$weeknumber=0  
+Dec$weeknumber[1:4] <-5
+Dec$weeknumber[5:11] <-4
+Dec$weeknumber[12:18] <-3
+Dec$weeknumber[19:25] <-2
+Dec$weeknumber[26:31] <-1
+Dec$weeknumber <-as.character(Dec$weeknumber)
+
+calendargraph$color <-as.factor(calendargraph$color)
+
+p <- figure(title = "calendar", tools = c("resize", "hover"),
+            ylim = as.character(c(1:5)), xlim = as.character(c("Monday", "Tuesday", "Wednesday",
+                                                             "Thursday", "Friday", "Saturday","Sunday")),
+            xgrid = FALSE, ygrid = FALSE, xlab = "", ylab = "",
+            height = 550, width = 1000) %>%
+  
+  # plot rectangles
+  ly_crect(Dec$weekday,Dec$weeknumber, data = Dec, 0.9, 0.9,
+           fill_color = Dec$color, line_color = Dec$color, fill_alpha = 0.6,
+           hover = list(wakeup, sleep)) %>%
+  # add symbol text
+  ly_text(paste(Dec$weekday, ":0.1",""), paste(Dec$weeknumber, ":0.8",""), text = date, data = Dec,
+          font_style = "bold", font_size = "10pt",
+          align = "middle", baseline = "middle") %>%
+  # add atomic number text
+  ly_text(calendargraph$week, calendargraph$weeknumber+0.2, text = week1, data = calendargraph,
+          font_size = "8pt", align = "left", baseline = "middle") %>%
+  
+  # add atomic number text
+  ly_text(calendargraph$week-0.3, calendargraph$weeknumber, text = wake.up, data = calendargraph,
+          font_size = "8pt", align = "left", baseline = "middle") %>%
+  # add atomic number text
+  ly_text(calendargraph$week-0.3, calendargraph$weeknumber-0.15, text = sleep, data = calendargraph,
+          font_size = "8pt", align = "left", baseline = "middle") 
+
+p                      
 
 
 ##################################################
