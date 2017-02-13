@@ -10,7 +10,8 @@ WITH fivemintable AS(
     FROM
         gateway TIMESTAMP BY EventProcessedUtcTime
     WHERE
-        name = 'movement' AND taskName = 'movement'
+        name = 'movement' AND taskName = 'movement' AND IoTHub.ConnectionDeviceId = 'SG-04-HDB00013'
+
     GROUP BY
         IoTHub.ConnectionDeviceId,
         taskLocation,
@@ -22,11 +23,13 @@ WITH fivemintable AS(
 
 SELECT 
     hubid,
-    taskLocation,
     eventtime,
-    LAG([eventtime]) OVER (LIMIT DURATION(hour, 3)) as previousTime,
-    LAG([taskLocation]) OVER (LIMIT DURATION(hour, 3)) as formertaskLocation
+    LAG([eventtime]) OVER (LIMIT DURATION(minute, 2)) as previousTime,
+    LAG([taskLocation]) OVER (LIMIT DURATION(minute,2 )) as formertaskLocation,
+    taskLocation
 FROM fivemintable 
-WHERE [taskLocation] = 'Bathroom' AND LAG([taskLocation]) OVER (LIMIT DURATION(hour, 3)) = 'Bathroom' 
-       AND DATEDIFF(minute, LAG([eventtime]) OVER (LIMIT DURATION(hour, 3)), eventtime) > 1
-
+WHERE [taskLocation] = 'Living Room' AND LAG([taskLocation]) OVER (LIMIT DURATION(minute, 2)) <> 'Bathroom'
+       --AND LAG([taskLocation]) OVER (LIMIT DURATION(minute, 2)) <> 'Bedroom'
+       AND LAG([taskLocation]) OVER (LIMIT DURATION(minute, 2)) <> 'Living Room'
+       --AND LAG([taskLocation]) OVER (LIMIT DURATION(minute, 2)) <> 'Kitchen'
+       --AND DATEDIFF(minute, LAG([eventtime]) OVER (LIMIT DURATION(minute, 2)), eventtime) > 1
