@@ -12,8 +12,8 @@ from io import StringIO
 blob_service = BlockBlobService(account_name=account_name, account_key = account_key)
 #blob_service.get_blob_to_path("rspark","blobname","localfilename")
 #blob_service.create_container('mycontainer', public_access=PublicAccess.Container)
-container_name = 'adventis-input'
-container_name = 'mycontainer'
+container_name = 'adventisdatainput'
+#container_name = 'mycontainer'
 #blob_name ='2017-03-02/326454415_86a7973c64a7481784acfcd9578bd964_1.csv'
 #blob_string = blob_service.get_blob_to_text(container_name=container_name, blob_name=blob_name)
 
@@ -29,11 +29,60 @@ for blob in blobs:
     print(blob.name)
 TodayNo = len(blobs)-1    
 YstNo = len(blobs)-2
-blob_Class = blob_service.get_blob_to_text(container_name=container_name, blob_name = blobs[TodayNo].name)
-blob_string = blob_Class.content
-blob_df = pd.read_csv(StringIO(blob_string),low_memory=False)
+blob_Class1 = blob_service.get_blob_to_text(container_name=container_name, blob_name = blobs[TodayNo].name)
+blob_string1 = blob_Class1.content
+blob_df1 = pd.read_csv(StringIO(blob_string1),low_memory=False)
+
+blob_Class2 = blob_service.get_blob_to_text(container_name=container_name, blob_name = blobs[TodayNo].name)
+blob_string2 = blob_Class2.content
+blob_df2 = pd.read_csv(StringIO(blob_string2),low_memory=False)
+
+blob_df = blob_df2.append(blob_df1)
+print(blob_df1.shape[0])
+print(blob_df2.shape[0])
+print(blob_df.shape[0])
+
+from datetime import datetime
+blob_df['eventtime'] = datetime.strptime(blob_df['starttime'], "%Y-%m-%dT%H:%M:%S.%fZ")    
+
+timeseries = []
+for time in blob_df['starttime']:
+     timeseries.append(datetime.strptime(time, "%Y-%m-%dT%H:%M:%S.0000000Z"))
+blob_df['eventtime'] = timeseries
 print(blob_df.head(5))
 
+blob_df = blob_df[blob_df['tasklocation']=='Bedroom']
+hublist = blob_df.deviceid.unique()
+hublist = list(hublist)
+
+blob_df['status1'] = 'duration'
+blob_df['status2'] = 'duration'
+
+blob_hub1 = blob_df[blob_df['deviceid']==hublist[0]]
+blob_hub1.index = range(blob_hub1.shape[0])
+
+i = 1
+n = blob_hub1.shape[0]-1
+status1 = []
+status2 = []
+while (i < n):
+    delta = blob_hub1.at[i, 'eventtime'] - blob_hub1.at[i-1, 'eventtime']
+    if delta.seconds >1800:
+        status2.append('end')
+        status1.append('start')
+        print "hello world"
+        i=i+1
+    else:
+        status2.append('duation')
+        status1.append('duration') 
+        i=i+1
+    
+    
+
+
+#convert-time
+#import dateutil.parser
+#yourdate = dateutil.parser.parse("2007-03-04T21:08:12")
 # the below part is for upload
 #from azure.storage.blob import AppendBlobService
 #import os
