@@ -63,19 +63,21 @@ blob_hub1.index = range(blob_hub1.shape[0])
 
 i = 1
 n = blob_hub1.shape[0]-1
-status1 = []
-status2 = []
 while (i < n):
     delta = blob_hub1.at[i, 'eventtime'] - blob_hub1.at[i-1, 'eventtime']
     if delta.seconds >1800:
-        status2.append('end')
-        status1.append('start')
-        print "hello world"
-        i=i+1
-    else:
-        status2.append('duation')
-        status1.append('duration') 
-        i=i+1
+        blob_hub1.at[i-1, 'status1'] = 'start'    
+        blob_hub1.at[i, 'status2'] = 'end'    
+        print "hello world"        
+    i=i+1
+sleep_time = pd.DataFrame()
+sleep_time['hubid'] = hublist 
+
+starting = blob_hub1[blob_hub1['status1']=='start']
+ending = blob_hub1[blob_hub1['status2']=='end']
+
+flag = ''
+sleep = []
     
     
 
