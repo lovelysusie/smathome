@@ -8,6 +8,8 @@ from azure.storage.blob import BlockBlobService
 #from azure.storage.blob import PublicAccess
 import pandas as pd
 from io import StringIO
+from datetime import date, timedelta
+
 #from azure.storage.blob import PublicAccess
 blob_service = BlockBlobService(account_name=account_name, account_key = account_key)
 #blob_service.get_blob_to_path("rspark","blobname","localfilename")
@@ -27,19 +29,30 @@ while True:
     marker = batch.next_marker
 for blob in blobs:
     print(blob.name)
-TodayNo = len(blobs)-1    
-YstNo = len(blobs)-2
-blob_Class1 = blob_service.get_blob_to_text(container_name=container_name, blob_name = blobs[TodayNo].name)
-blob_string1 = blob_Class1.content
-blob_df1 = pd.read_csv(StringIO(blob_string1),low_memory=False)
+blob_list = []
+blob_date = []
+for blob in blobs:
+    blob_list.append(blob.name)
+    blob_date.append(blob.name[:10])
 
-blob_Class2 = blob_service.get_blob_to_text(container_name=container_name, blob_name = blobs[YstNo].name)
-blob_string2 = blob_Class2.content
-blob_df2 = pd.read_csv(StringIO(blob_string2),low_memory=False)
+blob_table = pd.DataFrame()
+blob_table['date'] = blob_date
+blob_table['blobname'] = blob_list
 
-blob_df = blob_df2.append(blob_df1)
-print(blob_df1.shape[0])
-print(blob_df2.shape[0])
+Today = date.today()  
+Today = Today.strftime('%Y-%m-%d')
+Yst = date.today() - timedelta(1)
+Yst = Yst.strftime('%Y-%m-%d')
+
+blob_table = blob_table[(blob_table['date']==Today)|(blob_table['date']==Yst)]
+
+blob_df = pd.DataFrame()
+for blobname in blob_table['blobname']:
+    blob_Class = blob_service.get_blob_to_text(container_name=container_name, blob_name = blobname)
+    blob_String =blob_Class.content 
+    blob_df1 = pd.read_csv(StringIO(blob_String),low_memory=False)
+    blob_df = blob_df.append(blob_df1)
+blob_df.index = range(blob_df.shape[0])
 print(blob_df.shape[0])
 
 #convert-time
@@ -48,8 +61,8 @@ from datetime import timedelta
 
 timeseries = []
 for time in blob_df['starttime']:
-     timeseries.append(datetime.strptime(time, "%Y-%m-%dT%H:%M:%S.0000000Z")+ timedelta(hours=8))
-     
+    timeseries.append(datetime.strptime(time, "%Y-%m-%dT%H:%M:%S.0000000Z")+ timedelta(hours=8))
+
 blob_df['eventtime'] = timeseries
 print(blob_df.head(5))
 
