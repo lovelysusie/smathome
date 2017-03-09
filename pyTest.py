@@ -9,15 +9,11 @@ from azure.storage.blob import BlockBlobService
 import pandas as pd
 from io import StringIO
 from datetime import date, timedelta
+from decimal import Decimal
 
-#from azure.storage.blob import PublicAccess
 blob_service = BlockBlobService(account_name=account_name, account_key = account_key)
-#blob_service.get_blob_to_path("rspark","blobname","localfilename")
-#blob_service.create_container('mycontainer', public_access=PublicAccess.Container)
 container_name = 'adventisdatainput'
-#container_name = 'mycontainer'
-#blob_name ='2017-03-02/326454415_86a7973c64a7481784acfcd9578bd964_1.csv'
-#blob_string = blob_service.get_blob_to_text(container_name=container_name, blob_name=blob_name)
+
 
 blobs = []
 marker = None
@@ -73,123 +69,90 @@ hublist = blob_df.deviceid.unique()
 hublist = list(hublist)
 print(hublist)
 
+# set up the status: start/end
 blob_df['status1'] = 'duration'
 blob_df['status2'] = 'duration'
 
-blob_hub1 = blob_df[blob_df['deviceid']==hublist[0]]
-blob_hub1.index = range(blob_hub1.shape[0])
-
-i = 1
-n = blob_hub1.shape[0]-1
-while (i < n):
-    delta = blob_hub1.at[i, 'eventtime'] - blob_hub1.at[i-1, 'eventtime']
-    if delta.seconds >1800:
-        blob_hub1.at[i-1, 'status1'] = 'start'    
-        blob_hub1.at[i, 'status2'] = 'end'    
-    i=i+1
+sleep = []
+wakeup = []
 sleep_time = pd.DataFrame()
 sleep_time['hubid'] = hublist 
+        
 
-starting = blob_hub1[blob_hub1['status1']=='start']
-ending = blob_hub1[blob_hub1['status2']=='end']
-
-from datetime import date, timedelta
-flag = date.today() - timedelta(1)
-flag = flag.strftime('%Y-%m-%d')
-flag = flag + ' 20:29:59'
-flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
-
-starting = starting[starting['eventtime']>flag]
-
-sleep = []
-sleep.append(starting.iloc[0]['eventtime'])
-
-# getting the wake up time
-
-starting = blob_hub1[blob_hub1['status1']=='start']
-ending = blob_hub1[blob_hub1['status2']=='end']
-
-flag = date.today()
-flag = flag.strftime('%Y-%m-%d')
-flag = flag + ' 08:30:01'
-flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
-
-ending = ending[ending['eventtime']<flag]
-
-flag = date.today()
-flag = flag.strftime('%Y-%m-%d')
-flag = flag + ' 05:00:01'
-flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
-
-k = ending.shape[0]-1
-wakeupPoint = ending.iloc[k]['eventtime']
-
-wakeup = []
-if ending.shape[0]==0:
-    blob_hub1 = blob_hub1[blob_hub1['eventtime']>date.today()]
-    wakeupPoint = blob_hub1.iloc[0]['eventtime']
-if wakeupPoint <flag:
-    blob_hub1 = blob_hub1[blob_hub1['eventtime']>flag]
-    wakeupPoint = blob_hub1.iloc[0]['eventtime']
+for hdbid in hublist:
+    blob_hub1 = blob_df[blob_df['deviceid']==hdbid]
+    if blob_hub1.shape[0]==0:
+        wakeup.append(Decimal('nan'))
+        sleep.append(Decimal('nan'))
+    else:
+        blob_hub1.index = range(blob_hub1.shape[0])
+        i = 1
+        n = blob_hub1.shape[0]-1
+        while (i < n):
+           delta = blob_hub1.at[i, 'eventtime'] - blob_hub1.at[i-1, 'eventtime']
+           if delta.seconds >1800:
+               blob_hub1.at[i-1, 'status1'] = 'start'    
+               blob_hub1.at[i, 'status2'] = 'end'    
+           i=i+1
     
-wakeup.append(wakeupPoint)
+        starting = blob_hub1[blob_hub1['status1']=='start']
+        ending = blob_hub1[blob_hub1['status2']=='end']
 
-print(wakeup)
-print(sleep)
-print(hublist)
+        flag = date.today() - timedelta(1)
+        flag = flag.strftime('%Y-%m-%d')
+        flag = flag + ' 20:29:59'
+        flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
 
-blob_hub2 = blob_df[blob_df['deviceid']==hublist[1]]
-blob_hub2.index = range(blob_hub2.shape[0])
+        starting = starting[starting['eventtime']>flag]
+        if starting.shape[0]==0:
+            k = blob_hub1.shape[0]-1
+            sleep.append(blob_hub1.iloc[k]['eventtime'])
+        else:
+            sleep.append(starting.iloc[0]['eventtime'])
 
-i = 1
-n = blob_hub2.shape[0]-1
-while (i < n):
-    delta = blob_hub2.at[i, 'eventtime'] - blob_hub2.at[i-1, 'eventtime']
-    if delta.seconds >1800:
-        blob_hub2.at[i-1, 'status1'] = 'start'    
-        blob_hub2.at[i, 'status2'] = 'end'    
-    i=i+1
+        # getting the wake up time
 
-starting = blob_hub2[blob_hub2['status1']=='start']
-ending = blob_hub2[blob_hub2['status2']=='end']
+        starting = blob_hub1[blob_hub1['status1']=='start']
+        ending = blob_hub1[blob_hub1['status2']=='end']
 
-flag = date.today() - timedelta(1)
-flag = flag.strftime('%Y-%m-%d')
-flag = flag + ' 20:29:59'
-flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
+        flag = date.today()
+        flag = flag.strftime('%Y-%m-%d')
+        flag = flag + ' 08:30:01'
+        flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
 
-starting = starting[starting['eventtime']>flag]
+        ending = ending[ending['eventtime']<flag]
+        
+        flag = date.today()
+        flag = flag.strftime('%Y-%m-%d')
+        flag = flag + ' 05:00:01'
+        flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
 
-sleep.append(starting.iloc[0]['eventtime'])
-
-# getting the wake up time
-
-starting = blob_hub2[blob_hub2['status1']=='start']
-ending = blob_hub2[blob_hub2['status2']=='end']
-
-flag = date.today()
-flag = flag.strftime('%Y-%m-%d')
-flag = flag + ' 08:30:01'
-flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
-
-ending = ending[ending['eventtime']<flag]
-
-flag = date.today()
-flag = flag.strftime('%Y-%m-%d')
-flag = flag + ' 05:00:01'
-flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
-
-k = ending.shape[0]-1
-wakeupPoint = ending.iloc[k]['eventtime']
-
-if ending.shape[0]==0:
-    blob_hub2 = blob_hub2[blob_hub2['eventtime']>date.today()]
-    wakeupPoint = blob_hub2.iloc[0]['eventtime']
-if wakeupPoint <flag:
-    blob_hub2 = blob_hub1[blob_hub2['eventtime']>flag]
-    wakeupPoint = blob_hub2.iloc[0]['eventtime']
+        if ending.shape[0]==0:
+            blob_hub1 = blob_hub1[blob_hub1['eventtime']>date.today()]
+            if blob_hub1.shape[0]==0:
+                wakeupPoint = Decimal('nan')
+            else:
+                wakeupPoint = blob_hub1.iloc[0]['eventtime']
+                if wakeupPoint <flag:
+                    blob_hub1 = blob_hub1[blob_hub1['eventtime']>flag]
+                    if blob_hub1.shape[0]==0:
+                        wakeupPoint = Decimal('nan')
+                    else:
+                        wakeupPoint = blob_hub1.iloc[0]['eventtime']
+       
+        else:
+            k = ending.shape[0]-1
+            wakeupPoint = ending.iloc[k]['eventtime']
+            if wakeupPoint <flag:
+                blob_hub1 = blob_hub1[blob_hub1['eventtime']>flag]
+                if blob_hub1.shape[0]==0:
+                    wakeupPoint = Decimal('nan')
+                else:
+                    wakeupPoint = blob_hub1.iloc[0]['eventtime']
+                
+        wakeup.append(wakeupPoint)
     
-wakeup.append(wakeupPoint)
+
 sleep_time['sleeptime']=sleep
 sleep_time['wakeupTime']=wakeup
 
