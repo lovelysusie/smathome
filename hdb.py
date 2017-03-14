@@ -6,7 +6,7 @@ Created on Fri Mar  3 13:03:21 2017
 """
 
 account_name='blobsensordata'
-account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
+account_key='####'
 
 from azure.storage.blob import BlockBlobService
 import pandas as pd
