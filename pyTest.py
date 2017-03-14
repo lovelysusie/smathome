@@ -2,7 +2,7 @@
 #account_key='xqbYRwVHQLogpIDeOridgxXzBdJQaA7OU6lRT8s8XkQjye3EPBJ7QFvJOQ/rlU5gDFE2OLaH5sg5BKzongYT8Q=='
 #
 account_name='blobsensordata'
-account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
+account_key='####'
 #container_name = 'preprocessed-data'
 from azure.storage.blob import BlockBlobService
 #from azure.storage.blob import PublicAccess
