@@ -2,7 +2,7 @@
 #account_key='xqbYRwVHQLogpIDeOridgxXzBdJQaA7OU6lRT8s8XkQjye3EPBJ7QFvJOQ/rlU5gDFE2OLaH5sg5BKzongYT8Q=='
 #
 account_name='blobsensordata'
-account_key='####'
+account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
 #container_name = 'preprocessed-data'
 from azure.storage.blob import BlockBlobService
 #from azure.storage.blob import PublicAccess
@@ -63,7 +63,7 @@ blob_df['eventtime'] = timeseries
 print(blob_df.head(5))
 
 blob_df = blob_df[blob_df['tasklocation']=='Bedroom']
-blob_df = blob_df[(blob_df['deviceid']=='SG-04-avent001') | (blob_df['deviceid']=='SG-04-avent002')]
+blob_df = blob_df[(blob_df['deviceid']=='SG-04-avent001') | (blob_df['deviceid']=='SG-04-avent002')| (blob_df['deviceid']=='SG-04-testingN')]
 
 hublist = blob_df.deviceid.unique()
 hublist = list(hublist)
@@ -81,9 +81,10 @@ sleep_time['hubid'] = hublist
 
 for hdbid in hublist:
     blob_hub1 = blob_df[blob_df['deviceid']==hdbid]
+    print(hdbid)
     if blob_hub1.shape[0]==0:
-        wakeup.append(Decimal('nan'))
-        sleep.append(Decimal('nan'))
+        wakeupPoint = 'nan'
+        sleep_point = 'nan'        
     else:
         blob_hub1.index = range(blob_hub1.shape[0])
         i = 1
@@ -102,19 +103,30 @@ for hdbid in hublist:
         flag = flag.strftime('%Y-%m-%d')
         flag = flag + ' 20:29:59'
         flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
-
+               
         starting = starting[starting['eventtime']>flag]
+        #starting.index = range(starting.shape[0])
         if starting.shape[0]==0:
             k = blob_hub1.shape[0]-1
-            sleep.append(blob_hub1.iloc[k]['eventtime'])
+            sleep_point = blob_hub1.iloc[k]['eventtime']
         else:
-            sleep.append(starting.iloc[0]['eventtime'])
-
+            sleep_point = starting.iloc[0]['eventtime']
+        flag = date.today()
+        flag = flag.strftime('%Y-%m-%d')
+        flag = flag + ' 02:30:01'
+        flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
+        if sleep_point >flag:
+            blob_hub2 = blob_hub1[blob_hub1['eventtime']>(date.today()-timedelta(1))]
+            blob_hub2.index = range(blob_hub2.shape[0])
+            sleep_point = blob_hub2.iloc[0]['eventtime']
+        if sleep_point >flag:
+           sleep_point = 'nan'
+        
         # getting the wake up time
 
         starting = blob_hub1[blob_hub1['status1']=='start']
         ending = blob_hub1[blob_hub1['status2']=='end']
-
+        
         flag = date.today()
         flag = flag.strftime('%Y-%m-%d')
         flag = flag + ' 08:30:01'
@@ -130,13 +142,13 @@ for hdbid in hublist:
         if ending.shape[0]==0:
             blob_hub1 = blob_hub1[blob_hub1['eventtime']>date.today()]
             if blob_hub1.shape[0]==0:
-                wakeupPoint = Decimal('nan')
+                wakeupPoint = 'nan'
             else:
                 wakeupPoint = blob_hub1.iloc[0]['eventtime']
                 if wakeupPoint <flag:
                     blob_hub1 = blob_hub1[blob_hub1['eventtime']>flag]
                     if blob_hub1.shape[0]==0:
-                        wakeupPoint = Decimal('nan')
+                        wakeupPoint = 'nan'
                     else:
                         wakeupPoint = blob_hub1.iloc[0]['eventtime']
        
@@ -146,11 +158,12 @@ for hdbid in hublist:
             if wakeupPoint <flag:
                 blob_hub1 = blob_hub1[blob_hub1['eventtime']>flag]
                 if blob_hub1.shape[0]==0:
-                    wakeupPoint = Decimal('nan')
+                    wakeupPoint = 'nan'
                 else:
                     wakeupPoint = blob_hub1.iloc[0]['eventtime']
-                
-        wakeup.append(wakeupPoint)
+    print(sleep_point)        
+    wakeup.append(wakeupPoint)
+    sleep.append(sleep_point)
     
 
 sleep_time['sleeptime']=sleep
