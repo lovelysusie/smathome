@@ -6,7 +6,7 @@ Created on Fri Mar  3 13:03:21 2017
 """
 
 account_name='blobsensordata'
-account_key='####'
+account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
 
 from azure.storage.blob import BlockBlobService
 import pandas as pd
@@ -52,17 +52,13 @@ for blobname in blob_table['blobname']:
     blob_String =blob_Class.content
     blob_df1 = pd.read_csv(StringIO(blob_String),low_memory=False)
     blob_df = blob_df.append(blob_df1)
-blob_df.index = range(blob_df.shape[0])
 print(blob_df.shape[0])
 
 #convert-time
+blob_df['eventtime'] = blob_df['starttime'].apply(lambda x: datetime.strptime(x, "%Y-%m-%dT%H:%M:%S.0000000Z")+ timedelta(hours=8) )
+blob_df = blob_df.sort('eventtime', ascending=1)
+blob_df.index = range(blob_df.shape[0])
 
-
-timeseries = []
-for time in blob_df['starttime']:
-     timeseries.append(datetime.strptime(time, "%Y-%m-%dT%H:%M:%S.0000000Z")+ timedelta(hours=8))
-     
-blob_df['eventtime'] = timeseries
 print(blob_df.head(5))
 
 # blob_df = blob_df[(blob_df['deviceid']=='SG-04-avent001') | (blob_df['deviceid']=='SG-04-avent002')]
@@ -83,9 +79,10 @@ sleep_time['hubid'] = hublist
 
 for hdbid in hublist:
     blob_hub1 = blob_df[blob_df['deviceid']==hdbid]
+    print(hdbid)
     if blob_hub1.shape[0]==0:
-        wakeup.append(Decimal('nan'))
-        sleep.append(Decimal('nan'))
+        wakeupPoint = 'nan'
+        sleep_point = 'nan'        
     else:
         blob_hub1.index = range(blob_hub1.shape[0])
         i = 1
@@ -104,19 +101,30 @@ for hdbid in hublist:
         flag = flag.strftime('%Y-%m-%d')
         flag = flag + ' 20:29:59'
         flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
-
+               
         starting = starting[starting['eventtime']>flag]
+        #starting.index = range(starting.shape[0])
         if starting.shape[0]==0:
             k = blob_hub1.shape[0]-1
-            sleep.append(blob_hub1.iloc[k]['eventtime'])
+            sleep_point = blob_hub1.iloc[k]['eventtime']
         else:
-            sleep.append(starting.iloc[0]['eventtime'])
-
+            sleep_point = starting.iloc[0]['eventtime']
+        flag = date.today()
+        flag = flag.strftime('%Y-%m-%d')
+        flag = flag + ' 02:30:01'
+        flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
+        if sleep_point >flag:
+            blob_hub2 = blob_hub1[blob_hub1['eventtime']>(date.today()-timedelta(1))]
+            blob_hub2.index = range(blob_hub2.shape[0])
+            sleep_point = blob_hub2.iloc[0]['eventtime']
+        if sleep_point >flag:
+           sleep_point = 'nan'
+        
         # getting the wake up time
 
         starting = blob_hub1[blob_hub1['status1']=='start']
         ending = blob_hub1[blob_hub1['status2']=='end']
-
+        
         flag = date.today()
         flag = flag.strftime('%Y-%m-%d')
         flag = flag + ' 08:30:01'
@@ -132,13 +140,13 @@ for hdbid in hublist:
         if ending.shape[0]==0:
             blob_hub1 = blob_hub1[blob_hub1['eventtime']>date.today()]
             if blob_hub1.shape[0]==0:
-                wakeupPoint = Decimal('nan')
+                wakeupPoint = 'nan'
             else:
                 wakeupPoint = blob_hub1.iloc[0]['eventtime']
                 if wakeupPoint <flag:
                     blob_hub1 = blob_hub1[blob_hub1['eventtime']>flag]
                     if blob_hub1.shape[0]==0:
-                        wakeupPoint = Decimal('nan')
+                        wakeupPoint = 'nan'
                     else:
                         wakeupPoint = blob_hub1.iloc[0]['eventtime']
        
@@ -148,11 +156,12 @@ for hdbid in hublist:
             if wakeupPoint <flag:
                 blob_hub1 = blob_hub1[blob_hub1['eventtime']>flag]
                 if blob_hub1.shape[0]==0:
-                    wakeupPoint = Decimal('nan')
+                    wakeupPoint = 'nan'
                 else:
                     wakeupPoint = blob_hub1.iloc[0]['eventtime']
-                
-        wakeup.append(wakeupPoint)
+    print(sleep_point)        
+    wakeup.append(wakeupPoint)
+    sleep.append(sleep_point)
 
 
 
