@@ -20,7 +20,7 @@ from azure.storage.blob import AppendBlobService
 
 
 myaccount = 'rmscolife'
-mykey = 'aJhqu2VbzauSxzM5aK9JikRGYqlpBnLAM7tUQnuWletPjhRt98OHAGBe2LWmdVUVZD2AnfqkFbGYdNQlNHnYmQ=='
+mykey = '####'
 table_service = TableService(account_name=myaccount, account_key=mykey)
 
 tasks = table_service.query_entities('sensor', filter="devId eq 'e47fb2f7ae63'and PartitionKey eq '20'")
@@ -84,7 +84,7 @@ else:
 
 #----------------------------------from blob import Bathroom Data---------------------------------------------------------
 account_name='blobsensordata'
-account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
+account_key='####'
 container_name = 'adventisdatainput'
 
 blob_service = BlockBlobService(account_name=account_name, account_key = account_key)
@@ -258,18 +258,15 @@ if blob_table.shape[0]==0:
         sleep = sleep.rename(index=str, columns={ 'time': 'sleep'})
         
 account_name='blobsensordata'
-account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
+account_key='####'
 
 append_blob_service = AppendBlobService(account_name=account_name, account_key=account_key)
 
 # The same containers can hold all types of blobs
 container_name = 'rmsdata'
 append_blob_service.create_container(container_name)
-
-sleep_text = awake_table.to_string()
-append_blob_service.create_blob(container_name, 'wholeoutput0410')
-append_blob_service.append_blob_from_text(container_name, 'wholeoutput0410', sleep_text)
-merged_data = merged_data.to_string()
-append_blob_service.create_blob(container_name, 'bathroom0410')
-append_blob_service.append_blob_from_text(container_name, 'bathroom0410', merged_data)
-
+finaltable = pd.DataFrame()
+finaltable['hubid'] = 'SG-04-avent001'; finaltable['sleep'] = sleep['time']; finaltable['wakeup'] = wakeup['time'] 
+sleep_text = finaltable.to_string()
+append_blob_service.create_blob(container_name, Today)
+append_blob_service.append_blob_from_text(container_name, Today, sleep_text)
