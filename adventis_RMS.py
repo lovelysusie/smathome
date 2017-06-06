@@ -184,9 +184,9 @@ def final_generator(hub_id,types):
         if awake_table.shape[0]>1:
             awake_table['time'] = awake_table.index
             awake_table.index = range(awake_table.shape[0])
-            flag = awake_table['time'];flag.index = range(flag.shape[0])
-            flag1 = flag[0];k = len(flag)-1;flag2 = flag[k]    
-            bathroom_time = bathroom_time[(bathroom_time['time']>flag1) & (bathroom_time['time']<flag2)]
+            #flag = awake_table['time'];flag.index = range(flag.shape[0])
+            #flag1 = flag[0];k = len(flag)-1;flag2 = flag[k]    
+            #bathroom_time = bathroom_time[(bathroom_time['time']>flag1) & (bathroom_time['time']<flag2)]
             awake_table = awake_table.append(bathroom_time)
             awake_table = del_neighbor(awake_table)
             #-------use HV table filter the bathroom data 
