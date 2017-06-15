@@ -27,7 +27,7 @@ from azure.storage.blob import AppendBlobService
 
 
 account_name='blobsensordata'
-account_key='#####'
+account_key='####'
 #----------------load hublist for looping---------------------------------------
 container_name = 'rms'
 blob_service_ = BlockBlobService(account_name=account_name, account_key = account_key)
@@ -99,7 +99,7 @@ def remove_outliers(table):
         i = i+1
     return table, outliers    
 
-def time_picker(raw_wake_table,types):
+def time_picker(raw_wake_table,types,bathroom_table):
     if types=='sleep':
         flag3 = setflag("03:00:00",0,'normal'); flag4 = setflag("20:59:59",1,'normal')
         sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
@@ -120,13 +120,17 @@ def time_picker(raw_wake_table,types):
     if types =='wakeup':
         flag3 = setflag("05:00:00",0,'normal')
         wakeup = raw_wake_table[raw_wake_table['time']>flag3]
+        if bathroom_table.shape[0]!=0:
+            wakeup.index = range(wakeup.shape[0])
+            flag1=wakeup.ix[0]['time'];flag2=wakeup.ix[1]['time']
+            bathroom_table = bathroom_table[(bathroom_table['time']>flag1)&(bathroom_table['time']<flag2)]
         if wakeup.shape[0]>1:
             wakeup.index = range(wakeup.shape[0])
             delta = wakeup.at[1, 'time'] - wakeup.at[0, 'time']
-            if delta.seconds <2400:
-                wakeup = wakeup.iloc[[0]]
-            else :
+            if (delta.seconds >2400)&(bathroom_table.shape[0]<3):
                 wakeup = wakeup.iloc[[1]]
+            else :
+                wakeup = wakeup.iloc[[0]]
             print(wakeup)
         if wakeup.shape[0]==1:
             print(wakeup)
@@ -134,6 +138,7 @@ def time_picker(raw_wake_table,types):
             print("hello, no data lah")
         wakeup = wakeup.rename(index=str, columns={ 'time': 'wakeup'})   
         return wakeup
+
 def get_grouped(rawdata,types,epoch):
     rawdata = rawdata.set_index(rawdata['eventtime'].map(parser.parse))
     if types=='bathroom':
@@ -184,22 +189,40 @@ def final_generator(hub_id,types):
         if awake_table.shape[0]>1:
             awake_table['time'] = awake_table.index
             awake_table.index = range(awake_table.shape[0])
-            #flag = awake_table['time'];flag.index = range(flag.shape[0])
-            #flag1 = flag[0];k = len(flag)-1;flag2 = flag[k]    
-            #bathroom_time = bathroom_time[(bathroom_time['time']>flag1) & (bathroom_time['time']<flag2)]
+            flag = awake_table['time'];flag.index = range(flag.shape[0])
+            flag1 = flag[0]#;k = len(flag)-1;flag2 = flag[k] 
+            bathroom_time = bathroom_time[bathroom_time['time']>flag1]
             awake_table = awake_table.append(bathroom_time)
             awake_table = del_neighbor(awake_table)
             #-------use HV table filter the bathroom data 
             #-------------deal with HV talbe & select the wake up time--------------------------
             awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
-            wakeup = time_picker(awake_table,'wakeup')
+            wakeup = time_picker(awake_table,'wakeup',bathroom_time)
             #-------------deal with HV talbe & select the sleep time----------------------------
-            sleep = time_picker(awake_table,'sleep')    
-        else:
+            sleep = time_picker(awake_table,'sleep',bathroom_time)
+        if awake_table.shape[0]==1:
+            awake_table['time'] = awake_table.index
+            awake_table.index = range(awake_table.shape[0])
+            flag = awake_table['time'];flag.index = range(flag.shape[0])
+            flag1 = flag[0];flag2=setflag("05:00:00",0,'normal')
+            if flag1<flag2:
+                  bathroom_time = bathroom_time[bathroom_time['time']>flag1]
+            if flag1>flag2:
+                  flag3 = setflag("20:59:59",1,'normal')
+                  bathroom_time = bathroom_time[bathroom_time['time']>flag3]
+            awake_table = awake_table.append(bathroom_time)
+            awake_table = del_neighbor(awake_table)      
+            #-------------deal with HV talbe & select the wake up time--------------------------
+            awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
+            wakeup = time_picker(awake_table,'wakeup',bathroom_time)
+            #-------------deal with HV talbe & select the sleep time----------------------------
+            sleep = time_picker(awake_table,'sleep',bathroom_time)
+        if awake_table.shape[0]==0:
             sleep = pd.DataFrame(); sleep['sleep'] = 'nan'
             wakeup = pd.DataFrame(); wakeup['wakeup'] = 'nan'            
     #---------------------------------------------------------if do not have bathroom data--------------------------------------------
     if blob_df.shape[0]==0:
+        bathroom_time = pd.DataFrame()
         if awake_table.shape[0]>1:
             awake_table['time'] = awake_table.index
             awake_table = del_neighbor(awake_table)
@@ -207,9 +230,9 @@ def final_generator(hub_id,types):
             print(len(awake_table))
             awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
             #--------------------deal with sleep time based on HV table------------------------------------
-            wakeup = time_picker(awake_table,'wakeup')
+            wakeup = time_picker(awake_table,'wakeup',bathroom_time)
             #-------------deal with HV talbe & select the sleep time---------------------------------------
-            sleep = time_picker(awake_table,'sleep')
+            sleep = time_picker(awake_table,'sleep',bathroom_time)
         else:
             sleep = pd.DataFrame(); sleep['sleep'] = 'nan'
             wakeup = pd.DataFrame(); wakeup['wakeup'] = 'nan'
@@ -226,13 +249,14 @@ rms_whole = from_blob_load_data(account_name,account_key,container_name,'RMS')
 rms_whole = rms_whole[['gwId','EventProcessedUtcTime']]
 rms_whole = rms_whole.rename(index=str, columns={ 'EventProcessedUtcTime': "starttime"})
 rms_whole = time_normer(rms_whole)
-rms_whole.loc[(rms_whole['gwId']=='e47fb2f7adb2'),'hubid' ]= 'SG-04-testingN'
 rms_whole.loc[(rms_whole['gwId']=='e47fb2f7ae63'),'hubid' ]= 'SG-04-avent001'
-rms_whole.loc[(rms_whole['gwId']=='e47fb2f7ae5e'),'hubid' ]= 'SG-04-starhub6'
-rms_whole.loc[(rms_whole['gwId']=='e47fb2f7ae62'),'hubid' ]= 'SG-04-starhub7'
-rms_whole.loc[(rms_whole['gwId']=='e47fb2f7ae5f'),'hubid' ]= 'SG-04-starhub8'
-rms_whole.loc[(rms_whole['gwId']=='e47fb2f7ae5d'),'hubid' ]= 'SG-04-inter002'
-rms_whole.loc[(rms_whole['gwId']=='e47fb2f7adb0'),'hubid' ]= 'SG-04-starhub5'
+rms_whole.loc[(rms_whole['gwId']=='e47fb2f7af1d'),'hubid' ]= 'SG-04-starhub6'
+rms_whole.loc[(rms_whole['gwId']=='e47fb2f7ae74'),'hubid' ]= 'SG-04-testingN'
+rms_whole.loc[(rms_whole['gwId']=='e47fb2f7adb0'),'hubid' ]= 'SG-04-testingQ'
+#rms_whole.loc[(rms_whole['gwId']=='e47fb2f7ae5f'),'hubid' ]= 'SG-04-starhub8'
+rms_whole.loc[(rms_whole['gwId']=='e47fb2f7af61'),'hubid' ]= 'SG-04-inter002'
+rms_whole.loc[(rms_whole['gwId']=='e47fb2f7af47'),'hubid' ]= 'SG-04-inter001'
+rms_whole.loc[(rms_whole['gwId']=='e47fb2f7adae'),'hubid' ]= 'SG-04-testingK'
 
 
 #----------------------------------from blob import Bathroom Data---------------------------------------------------------
