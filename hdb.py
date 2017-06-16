@@ -6,7 +6,7 @@ Created on Fri Mar  3 13:03:21 2017
 """
 
 account_name='blobsensordata'
-account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
+account_key='####'
 
 from azure.storage.blob import BlockBlobService
 import pandas as pd
@@ -183,7 +183,7 @@ container_name = 'hdbwakeupsleeptime'
 append_blob_service.create_container(container_name)
 
 # Append blobs must be created before they are appended to
-sleep_text = sleep_time.to_string()
+sleep_text = sleep_time.to_csv()
 append_blob_service.create_blob(container_name, date.today().strftime('%Y-%m-%d'))
 append_blob_service.append_blob_from_text(container_name, date.today().strftime('%Y-%m-%d'), sleep_text)
 
