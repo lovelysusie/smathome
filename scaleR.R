@@ -1,14 +1,15 @@
 # import the data
-inFile <- file.path(rxGetOption("sampleDataDir"), "table0206.csv")
+inFile <- file.path(rxGetOption("sampleDataDir"), "table0220.csv")
 
 wholeData <- rxImport(inData=inFile, outFile = "hdb.xdf",
-                      stringsAsFactors = TRUE, missingValueString = "M", rowsPerRead = 200000,
-                      overwrite=TRUE)
+                stringsAsFactors = TRUE, missingValueString = "M", rowsPerRead = 200000,
+                overwrite=TRUE)
 
 rxGetInfo(wholeData, getVarInfo = TRUE)
+outputpath <-tempfile(fileext = ".xdf")
 
 # drop some variables
-varsToDrop = c("name", "taskname","address","endtime")
+varsToDrop = c("name")
 hdfsFS <- RxHdfsFileSystem()
 #########################
 wholeData <- rxDataStep(inData = wholeData, 
@@ -16,21 +17,39 @@ wholeData <- rxDataStep(inData = wholeData,
                         overwrite = TRUE)
 
 # as for adventis01
-partOne <- rxDataStep(inData = wholeData, 
+partOne <- rxDataStep(inData = wholeData, outFile = outputpath,
                         rowSelection = (tasklocation == "Bedroom" &
-                                         hubid==unique(hubid)[2]), 
+                                         hubid==unique(hubid)[2] & timegap > 25),
+                        transforms = list(Rtime = as.POSIXct(starttime,"%Y-%m-%dT%H:%M:%S", tz="UTC")),
                         overwrite = TRUE)
+wholeData <-rxSplit(inData = wholeData,splitByFactor="hubid",
+                    transforms = list(Rtime = as.POSIXct(starttime,"%Y-%m-%dT%H:%M:%S", tz="UTC")),
+                    overwrite = TRUE)
+wholeData <-rxDataStep(inData = wholeData, outFile = partOne,
+                       rowSelection = (starttime == starttime[1]),overwrite = TRUE)
+head("hdb.hubid.SG-04-avent001.xdf",2)
+test <-wholeData[3]
+file <-RxXdfData(file = wholeData[1])
+head(file,2)
+#partOne$starttime = substr(partOne$starttime,1,19)
+#partOne$starttime = sub("T", " ",partOne$starttime, fixed=FALSE)
+#partOne$starttime <-strptime(partOne$starttime, "%Y-%m-%d %H:%M:%S")
+#partOne$starttime <-as.POSIXct(partOne$starttime)
+#partOne$date = as.Date(partOne$starttime)
 
-partOne$starttime = substr(partOne$starttime,1,19)
-partOne$starttime = sub("T", " ",partOne$starttime, fixed=FALSE)
-partOne$starttime <-strptime(partOne$starttime, "%Y-%m-%d %H:%M:%S")
-partOne$starttime <-as.POSIXct(partOne$starttime)
-partOne$date = as.Date(partOne$starttime)
+rxDataStep(inData =  partOne,  outFile = outputpath,
+           transforms = list(nexttime = lag(starttime,1,na.pad=TRUE),
+                             date = as.Date(starttime)),
+           overwrite = TRUE)
+rxDataStep(outputpath,numRows = 5)
 
-partOne <- rxDataStep(inData = partOne, 
-                      rowSelection = (date == Sys.Date()|date == Sys.Date()-1), 
+
+rxDataStep(inData = partOne, outFile = outputpath,
+                      transforms = list(nexttime = as.Date(starttime)-1),
                       overwrite = TRUE)
 
+hdfsFS2 <- RxHdfsFileSystem()
+outputfile =RxXdfData(file = outputpath)
 
 #get the starting of the 30min interval
 partOne$status1 <-"duration"
