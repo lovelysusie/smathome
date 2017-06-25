@@ -98,7 +98,7 @@ def remove_outliers(table):
         i = i+1
     return table, outliers    
 
-def time_picker(raw_wake_table,types,bathroom_table):
+def time_picker(raw_wake_table,types,bathroom_table,check_frame):
     if types=='sleep':
         flag3 = setflag("03:00:00",0,'normal'); flag4 = setflag("20:59:59",1,'normal')
         sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
@@ -126,11 +126,36 @@ def time_picker(raw_wake_table,types,bathroom_table):
         if wakeup.shape[0]>1:
             wakeup.index = range(wakeup.shape[0])
             delta = wakeup.at[1, 'time'] - wakeup.at[0, 'time']
-            if (delta.seconds >2400)&(bathroom_table.shape[0]<3):
+            check_frame = room_acttime[(room_acttime['time']>wakeup.at[0, 'time'])&(room_acttime['time']<wakeup.at[1, 'time'])]
+            if (check_frame.shape[0]==0)&(wakeup.shape[0]>2):
+                check_frame = room_acttime[(room_acttime['time']>wakeup.at[1, 'time'])&(room_acttime['time']<wakeup.at[2, 'time'])]
+                if check_frame.shape[0]==0:
+                    wakeup = wakeup.iloc[[2]]
+                if check_frame.shape[0]!=0:
+                    wakeup = wakeup.iloc[[1]]
+            if (check_frame.shape[0]==0)&(wakeup.shape[0]==2):
                 wakeup = wakeup.iloc[[1]]
-            else :
-                wakeup = wakeup.iloc[[0]]
-            print(wakeup)
+            if (check_frame.shape[0]>0)&(wakeup.shape[0]==2):
+                check_frame = RMS.get_check(rms_data,wakeup)
+                check_frame = check_frame[check_frame['gap']>300]
+                if check_frame.shape[0]==1:
+                    wakeup = wakeup.iloc[[0]]
+                if check_frame.shape[0]>1:
+                    wakeup = wakeup.iloc[[1]]
+            if (check_frame.shape[0]>0)&(wakeup.shape[0]>2):
+                check_frame = RMS.get_check(rms_data,wakeup)
+                check_frame = check_frame[check_frame['gap']>300]
+                if check_frame.shape[0]==1:
+                    wakeup = wakeup.iloc[[0]]
+                if check_frame.shape[0]>1:
+                    wakeup = wakeup.drop(wakeup.index[0], inplace=True)
+                    wakeup.index = range(wakeup.shape[0])
+                    check_frame = RMS.get_check(rms_data,wakeup)
+                    check_frame = check_frame[check_frame['gap']>300]
+                    if check_frame.shape[0]==1:
+                        wakeup = wakeup.iloc[[0]]
+                    if check_frame.shape[0]>1:
+                        wakeup = wakeup.iloc[[1]]
         if wakeup.shape[0]==1:
             print(wakeup)
         if wakeup.shape[0]==0:
@@ -250,13 +275,21 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
     else:
         return ['nan']
 
-def get_check(raw_rms_dara):
+def get_check(raw_rms_dara,wakeup_input):
     raw_rms_dara = raw_rms_dara.set_index(raw_rms_dara['eventtime'].map(parser.parse))
     five_time_table = raw_rms_dara.groupby(pd.TimeGrouper('300s')).size()
     five_time_table = five_time_table.to_frame()
-    five_time_table = five_time_table.rename(index=str, columns={ 0: "5min"})
+    five_time_table = five_time_table.rename(index=str, columns={ 0: "sum"})
     five_time_table['time'] = five_time_table.index
     five_time_table['time'] = five_time_table['time'].apply(lambda x: datetime.strptime(x,'%Y-%m-%d %H:%M:%S'))
+    five_time_table = five_time_table[(five_time_table['time']>wakeup_input.at[0, 'time'])&(five_time_table['time']<wakeup_input.at[1, 'time'])]
+    five_time_table = five_time_table[five_time_table['sum']==0]
+    five_time_table['gap'] = 0
+    five_time_table = five_time_table.append(wakeup_input[:2])
+    five_time_table = five_time_table.sort('time',ascending = 1)
+    five_time_table['gap'] = five_time_table['time'].diff()
+    five_time_table['gap'].ix[0] = timedelta(seconds=300)
+    five_time_table['gap'] = five_time_table['gap'].apply(lambda x: x.seconds)  
     return five_time_table
 '''
 def up2blob(account_name_input,account_key_input,container_name_input = 'rmsoutput',uploadfile):
