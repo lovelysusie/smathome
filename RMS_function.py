@@ -150,6 +150,7 @@ def get_grouped(rawdata,types):
             room_whole = room_whole.append(room_frame)
         room_whole = room_whole.dropna(subset=['value'], how='all')
         room_whole['time'] = room_whole.index
+        room_whole.index = range(room_whole.shape[0])
         return room_whole
     if types=='bedroom':
         if rawdata.shape[0]!=0:
@@ -169,7 +170,8 @@ def get_grouped(rawdata,types):
             awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
             awake_table['gap'] = awake_table['5min'].diff()
             awake_table = awake_table[(awake_table['sum']>12)|(awake_table['gap']<-7)]
-            awake_table['time_gap'] = awake_table['time'].diff()
+            del awake_table['1min']; del awake_table['5min']
+            awake_table.index = range(awake_table.shape[0])
         else:
             awake_table = pd.DataFrame()
         return awake_table
@@ -187,13 +189,12 @@ def time_normer(rawdata):
 def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
     rms_data = rms_whole_input[rms_whole_input['hubid']==hub_id]
     blob_df = blob_df_whole_input[blob_df_whole_input['deviceid']==hub_id]
-    awake_table = get_grouped(rms_data,'bedroom','60s')
+    awake_table = get_grouped(rms_data,'bedroom')
     #------------------------------------------------------if there is bathroom data--------------------------------------------
     if blob_df.shape[0]!=0:     
-        bathroom_time = get_grouped(blob_df,'bathroom','600s')    
+        bathroom_time = get_grouped(blob_df,'bathroom')    
         #----------add RMS data--------------------------------------------------
         if awake_table.shape[0]>1:
-            awake_table['time'] = awake_table.index
             awake_table.index = range(awake_table.shape[0])
             flag = awake_table['time'];flag.index = range(flag.shape[0])
             flag1 = flag[0]#;k = len(flag)-1;flag2 = flag[k] 
@@ -249,16 +250,14 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
     else:
         return ['nan']
 
-
-def get_grouped_bathroom(rawdata,epoch):
-    rawdata = rawdata.set_index(rawdata['eventtime'].map(parser.parse))
-    bathroom_time = rawdata.groupby(pd.TimeGrouper(epoch)).max()
-    bathroom_time = bathroom_time.dropna(subset=['value'], how='all')
-    bathroom_time['eventtime'] = bathroom_time.index
-    bathroom_time.index = range(bathroom_time.shape[0])
-    bathroom_time = bathroom_time[['time']]
-    bathroom_time['1min'] = 8;bathroom_time['sum'] = 0;bathroom_time['5min'] = 0
-    return bathroom_time
+def get_check(raw_rms_dara):
+    raw_rms_dara = raw_rms_dara.set_index(raw_rms_dara['eventtime'].map(parser.parse))
+    five_time_table = raw_rms_dara.groupby(pd.TimeGrouper('300s')).size()
+    five_time_table = five_time_table.to_frame()
+    five_time_table = five_time_table.rename(index=str, columns={ 0: "5min"})
+    five_time_table['time'] = five_time_table.index
+    five_time_table['time'] = five_time_table['time'].apply(lambda x: datetime.strptime(x,'%Y-%m-%d %H:%M:%S'))
+    return five_time_table
 '''
 def up2blob(account_name_input,account_key_input,container_name_input = 'rmsoutput',uploadfile):
     
