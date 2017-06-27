@@ -98,7 +98,7 @@ def remove_outliers(table):
         i = i+1
     return table, outliers    
 
-def time_picker(raw_wake_table,types,bathroom_table,check_frame):
+def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_input):
     if types=='sleep':
         flag3 = setflag("03:00:00",0,'normal'); flag4 = setflag("20:59:59",1,'normal')
         sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
@@ -126,9 +126,9 @@ def time_picker(raw_wake_table,types,bathroom_table,check_frame):
         if wakeup.shape[0]>1:
             wakeup.index = range(wakeup.shape[0])
             delta = wakeup.at[1, 'time'] - wakeup.at[0, 'time']
-            check_frame = room_acttime[(room_acttime['time']>wakeup.at[0, 'time'])&(room_acttime['time']<wakeup.at[1, 'time'])]
+            check_frame = room_acttime_input[(room_acttime_input['time']>wakeup.at[0, 'time'])&(room_acttime_input['time']<wakeup.at[1, 'time'])]
             if (check_frame.shape[0]==0)&(wakeup.shape[0]>2):
-                check_frame = room_acttime[(room_acttime['time']>wakeup.at[1, 'time'])&(room_acttime['time']<wakeup.at[2, 'time'])]
+                check_frame = room_acttime_input[(room_acttime_input['time']>wakeup.at[1, 'time'])&(room_acttime_input['time']<wakeup.at[2, 'time'])]
                 if check_frame.shape[0]==0:
                     wakeup = wakeup.iloc[[2]]
                 if check_frame.shape[0]!=0:
@@ -136,32 +136,34 @@ def time_picker(raw_wake_table,types,bathroom_table,check_frame):
             if (check_frame.shape[0]==0)&(wakeup.shape[0]==2):
                 wakeup = wakeup.iloc[[1]]
             if (check_frame.shape[0]>0)&(wakeup.shape[0]==2):
-                check_frame = RMS.get_check(rms_data,wakeup)
-                check_frame = check_frame[check_frame['gap']>300]
-                if check_frame.shape[0]==1:
+                check_frame = get_check(rms_data_input,wakeup)
+                check_frame = check_frame[check_frame['gap']==300]
+                if check_frame.shape[0]>2:
                     wakeup = wakeup.iloc[[0]]
-                if check_frame.shape[0]>1:
+                if check_frame.shape[0]<3:
                     wakeup = wakeup.iloc[[1]]
             if (check_frame.shape[0]>0)&(wakeup.shape[0]>2):
-                check_frame = RMS.get_check(rms_data,wakeup)
-                check_frame = check_frame[check_frame['gap']>300]
-                if check_frame.shape[0]==1:
+                check_frame = get_check(rms_data_input,wakeup)
+                check_frame = check_frame[check_frame['gap']==300]
+                if check_frame.shape[0]>2:
                     wakeup = wakeup.iloc[[0]]
-                if check_frame.shape[0]>1:
+                if check_frame.shape[0]<3:
                     wakeup = wakeup.drop(wakeup.index[0], inplace=True)
                     wakeup.index = range(wakeup.shape[0])
-                    check_frame = RMS.get_check(rms_data,wakeup)
-                    check_frame = check_frame[check_frame['gap']>300]
-                    if check_frame.shape[0]==1:
+                    check_frame = get_check(rms_data_input,wakeup)
+                    check_frame = check_frame[check_frame['gap']==300]
+                    if check_frame.shape[0]>2:
                         wakeup = wakeup.iloc[[0]]
-                    if check_frame.shape[0]>1:
+                    if check_frame.shape[0]<3:
                         wakeup = wakeup.iloc[[1]]
         if wakeup.shape[0]==1:
             print(wakeup)
         if wakeup.shape[0]==0:
             print("hello, no data lah")
         wakeup = wakeup.rename(index=str, columns={ 'time': 'wakeup'})   
-        return wakeup
+        return wakeup,check_frame
+
+
 
 def get_grouped(rawdata,types):
     rawdata = rawdata.set_index(rawdata['eventtime'].map(parser.parse))
