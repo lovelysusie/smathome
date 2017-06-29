@@ -150,7 +150,7 @@ def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_
                 if check_frame.shape[0]>2:
                     wakeup = wakeup.iloc[[0]]
                 if check_frame.shape[0]<3:
-                    wakeup = wakeup.drop(wakeup.index[0], inplace=True)
+                    wakeup.drop(wakeup.index[0], inplace=True)
                     wakeup.index = range(wakeup.shape[0])
                     check_frame = get_check(rms_data_input,wakeup)
                     check_frame = check_frame[check_frame['gap']==300]
@@ -257,47 +257,49 @@ def check_awake_table(awake_table_input,raw_rms_input):
     if (awake_table_test1.shape[0]!=0)&(awake_table_test2.shape[0]==0):#sleep have not been capture
         rawdata = rawdata[rawdata['eventtime']<flag1]
 
-    if (awake_table_test1.shape[0]==0)&(awake_table_test2.shape[0]==0):#both have not been capture
-        rawdata = rawdata[(rawdata['eventtime']<flag1)|(rawdata['eventtime']>flag2)]
+    if (awake_table_test1.shape[0]!=0)&(awake_table_test2.shape[0]!=0):#both have not been capture
+        rawdata = pd.DataFrame()
+    if rawdata.shape[0]!=0:
+        five_time_table = rawdata.groupby(pd.TimeGrouper('300s')).size().to_frame()
+        five_time_table = five_time_table.rename(index=str, columns={ 0: 'sum'})
+        five_time_table['time'] = five_time_table.index
+        five_time_table['time'] = five_time_table['time'].apply(lambda x: datetime.strptime(x,'%Y-%m-%d %H:%M:%S'))
+        five_time_table.index = range(five_time_table.shape[0])
+        first_line = five_time_table[:1]
+        blank_time = five_time_table[five_time_table['sum']==0]
+        blank_time['gap'] = blank_time['time'].diff()
+        blank_time.index = range(blank_time.shape[0])
+        last_line = five_time_table[-1:]
 
-    five_time_table = rawdata.groupby(pd.TimeGrouper('300s')).size().to_frame()
-    five_time_table = five_time_table.rename(index=str, columns={ 0: 'sum'})
-    five_time_table['time'] = five_time_table.index
-    five_time_table['time'] = five_time_table['time'].apply(lambda x: datetime.strptime(x,'%Y-%m-%d %H:%M:%S'))
-    five_time_table.index = range(five_time_table.shape[0])
-    first_line = five_time_table[:1]
-    blank_time = five_time_table[five_time_table['sum']==0]
-    blank_time['gap'] = blank_time['time'].diff()
-    blank_time.index = range(blank_time.shape[0])
-    last_line = five_time_table[-1:]
+        if blank_time.shape[0]>2:
+            blank_time['gap'].ix[0] = blank_time['time'][0]-first_line['time'][0]
+            blank_time['gap'] = blank_time['gap'].apply(lambda x: x.seconds)
+            i=0; n=blank_time.shape[0]-1
+            add_frame = pd.DataFrame()
+            while i<n:
+                if (blank_time['gap'][i]==300)&(blank_time['gap'][i+1]==300):
+                    add_line = blank_time.loc[[i]]
+                    add_frame = add_frame.append(add_line)
+                i=i+1
+            add_frame['time'] = add_frame['time'].apply(lambda x: x-timedelta(seconds=300))
+            add_frame = add_frame.append(last_line)    
 
-    if blank_time.shape[0]>2:
-        blank_time['gap'].ix[0] = blank_time['time'][0]-first_line['time'][0]
-        blank_time['gap'] = blank_time['gap'].apply(lambda x: x.seconds)
-        i=0; n=blank_time.shape[0]-1
-        add_frame = pd.DataFrame()
-        while i<n:
-            if (blank_time['gap'][i]==300)&(blank_time['gap'][i+1]==300):
-                add_line = blank_time.loc[[i]]
-                add_frame = add_frame.append(add_line)
-            i=i+1
-        add_frame['time'] = add_frame['time'].apply(lambda x: x-timedelta(seconds=300))
-        add_frame = add_frame.append(last_line)    
+        if blank_time.shape[0]==2:
+            add_frame = blank_time.loc[[1]]
+            add_frame['time'] = add_frame['time'].apply(lambda x: x-timedelta(seconds=300))
+            add_frame = add_frame.append(last_line)    
 
-    if blank_time.shape[0]==2:
-        add_frame = blank_time.loc[[1]]
-        add_frame['time'] = add_frame['time'].apply(lambda x: x-timedelta(seconds=300))
-        add_frame = add_frame.append(last_line)    
-
-    if blank_time.shape[0]==1:
-        add_frame = blank_time.loc[[0]]
-        add_frame['time'] = add_frame['time'].apply(lambda x: x-timedelta(seconds=300))
-        add_frame = add_frame.append(last_line)    
-    if blank_time.shape[0]==0:
-        add_frame = five_time_table[-1:]
-        add_frame['gap'] = 20;add_frame['sum'] = 20
+        if blank_time.shape[0]==1:
+            add_frame = blank_time.loc[[0]]
+            add_frame['time'] = add_frame['time'].apply(lambda x: x-timedelta(seconds=300))
+            add_frame = add_frame.append(last_line)    
+        if blank_time.shape[0]==0:
+            add_frame = five_time_table[-1:]
+            add_frame['gap'] = 20;add_frame['sum'] = 20
     
-    awake_table_input = awake_table_input.append(add_frame)
+        awake_table_input = awake_table_input.append(add_frame)
+    if rawdata.shape[0]==0:
+        awake_table_input = awake_table_input
     return awake_table_input
 
 
@@ -306,6 +308,7 @@ def time_picker_single(raw_wake_table, types,rms_data_input):
     if types=='sleep':
         flag3 = setflag("02:00:01",0,'normal'); flag4 = setflag("22:59:59",1,'normal')
         test = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
+        sleep = pd.DataFrame()
         if test.shape[0]>0:
             flag3 = setflag("02:00:01",0,'normal'); flag4 = setflag("22:59:59",1,'normal')
             sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
@@ -324,12 +327,16 @@ def time_picker_single(raw_wake_table, types,rms_data_input):
                     sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
                     if sleep.shape[0]==0:
                         print("no sleeping data")
+                        sleep = pd.DataFrame()
                     if sleep.shape[0]!=0:
                         sleep.index = range(sleep.shape[0])
                         sleep = sleep.loc[[0]]
             sleep = sleep.rename(index=str, columns={ 'time': 'sleep'})
-        if test.shape==0:
-            sleep = pd.DataFrame()
+        if test.shape[0]==0:
+            raw_wake_table.index = range(raw_wake_table.shape[0])
+            sleep = raw_wake_table[-1:]
+            sleep.index = range(sleep.shape[0])
+            sleep = sleep.rename(index=str, columns={ 'time': 'sleep'})
         return sleep
 
     if types =='wakeup':
@@ -350,7 +357,7 @@ def time_picker_single(raw_wake_table, types,rms_data_input):
                 if check_frame.shape[0]>2:
                     wakeup = wakeup.iloc[[0]]
                 if check_frame.shape[0]<3:
-                    wakeup = wakeup.drop(wakeup.index[0], inplace=True)
+                    wakeup.drop(wakeup.index[0], inplace=True)
                     wakeup.index = range(wakeup.shape[0])
                     check_frame = get_check(rms_data_input,wakeup)
                     check_frame = check_frame[check_frame['gap']==300]
@@ -372,6 +379,24 @@ def bathroon_checker(bathroom_input):
     bathroom_input['gap'] = bathroom_input['gap'].apply(lambda x: x.seconds)
     bathroom_input = bathroom_input[(bathroom_input['sum']!=1)|(bathroom_input['gap']==300)]
     return bathroom_input
+
+
+def bathroom_table_prep(room_acttime_input):
+    '''
+    This function is going to get the bathroom raw data, which has not been filtered by the awake table
+    NOTE: here delete 5 min for each tampstam so that when checking all room blank not getting confused
+    '''
+    bathroom_time = room_acttime_input[room_acttime_input['tasklocation']=='Bathroom']
+    del bathroom_time['tasklocation']
+    bathroom_time = bathroom_time.rename(index=str, columns={'value': "sum"})
+    bathroom_time['gap'] = 0
+    bathroom_time['time'] = bathroom_time['time'].apply(lambda x: x-timedelta(minutes = 5))
+    if bathroom_time.shape[0]>0:
+        bathroom_time = bathroon_checker(bathroom_time)
+    if bathroom_time.shape[0]==0:
+        bathroom_time = bathroom_time
+    return bathroom_time
+
     
 def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
     rms_data = rms_whole_input[rms_whole_input['hubid']==hub_id]
@@ -380,32 +405,22 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
     if awake_table.shape[0]!=0:
         awake_table = check_awake_table(awake_table,rms_data)
     if blob_df.shape[0]!=0:     
-        room_acttime = get_grouped(blob_df_whole_input,'bathroom')
+        room_acttime = get_grouped(blob_df,'bathroom')
         print("multiroom user")
         if types=='wakeup':
             if awake_table.shape[0]>1:
                 flag = awake_table['time'];flag.index = range(flag.shape[0])
                 flag1 = flag[0]#;k = len(flag)-1;flag2 = flag[k]
-                bathroom_time = room_acttime[room_acttime['tasklocation']=='Bathroom']
-                del bathroom_time['tasklocation']
-                bathroom_time = bathroom_time.rename(index=str, columns={'value': "sum"})
-                bathroom_time['gap'] = 0
+                bathroom_time = bathroom_table_prep(room_acttime)
                 bathroom_time = bathroom_time[bathroom_time['time']>flag1]
-                bathroom_time['time'] = bathroom_time['time'].apply(lambda x: x-timedelta(minutes = 5))
-                bathroom_time = bathroon_checker(bathroom_time)
                 awake_table = awake_table.append(bathroom_time)
                 awake_table = del_neighbor(awake_table,'wakeup')
                 awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
                 wakeup = time_picker(awake_table,'wakeup',bathroom_time,rms_data,room_acttime)
             
             if awake_table.shape[0]==1:
-                awake_table['time'] = awake_table.index
-                awake_table.index = range(awake_table.shape[0])
                 flag = awake_table['time'];flag.index = range(flag.shape[0])
-                bathroom_time = room_acttime[room_acttime['tasklocation']=='bathroom']
-                bathroom_time = bathroom_time.rename(index=str, columns={'value': "sum"})
-                bathroom_time['gap'] = 0
-                del bathroom_time['tasklocation']
+                bathroom_time = bathroom_table_prep(room_acttime)
                 flag1 = flag[0];flag2=setflag("05:00:00",0,'normal')
                 if flag1<flag2:
                       bathroom_time = bathroom_time[bathroom_time['time']>flag1]
@@ -422,19 +437,16 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
         if types=='sleep':
             if awake_table.shape[0]!=0:
                 awake_table = awake_table[awake_table['sum']>12]
-            if awake_table.shape[0]>1:
+            if awake_table.shape[0]>0:
                 flag = awake_table['time'];flag.index = range(flag.shape[0])
                 flag1 = flag[0]#;k = len(flag)-1;flag2 = flag[k]
-                bathroom_time = room_acttime[room_acttime['tasklocation']=='bathroom']
-                del bathroom_time['tasklocation']
-                bathroom_time = bathroom_time.rename(index=str, columns={'value': "sum"})
-                bathroom_time['gap'] = 0
+                bathroom_time = bathroom_table_prep(room_acttime)
                 bathroom_time = bathroom_time[bathroom_time['time']>flag1]
                 awake_table = awake_table.append(bathroom_time)
                 awake_table = del_neighbor(awake_table,'sleep')
                 awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
                 sleep = time_picker(awake_table,'sleep',bathroom_time,rms_data,room_acttime)
-            if awake_table.shape[0]<2:
+            if awake_table.shape[0]==0:
                 sleep = pd.DataFrame(); sleep['wakeup'] = 'nan'
     if blob_df.shape[0]==0:
         bathroom_time = pd.DataFrame()
@@ -445,8 +457,8 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
                 awake_table = del_neighbor(awake_table,'wakeup')
                 wakeup = time_picker_single(awake_table,'wakeup',rms_data)
             if types=='sleep':
-                awake_table = del_neighbor(awake_table,'sleep')
                 awake_table = awake_table[awake_table['sum']>12]
+                awake_table = del_neighbor(awake_table,'sleep')
                 sleep = time_picker_single(awake_table,'sleep',rms_data)
         else:
             sleep = pd.DataFrame(); sleep['sleep'] = 'nan'
@@ -461,6 +473,10 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
             return wakeup.ix[0]['wakeup']
         if wakeup.shape[0]==0:            
             return ['nan']
+
+
+
+
     
 '''
 def up2blob(account_name_input,account_key_input,container_name_input = 'rmsoutput',uploadfile):
