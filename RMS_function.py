@@ -5,7 +5,7 @@ from dateutil import parser
 from datetime import date
 import pytz
 from pytz import timezone
-from azure.storage.blob import BlobService
+from azure.storage.blob import BlockBlobService
 from io import StringIO
 from decimal import Decimal
 
@@ -21,7 +21,7 @@ def setflag(timestamp,day,tz):
     return flag
 
 def from_blob_load_data(account_name_,account_key_,container_name_,types):
-    blob_service = BlobService(account_name=account_name_, account_key = account_key_)
+    blob_service = BlockBlobService(account_name=account_name_, account_key = account_key_)
     blobs = [];blob_date = []
     generator = blob_service.list_blobs(container_name_)
     for blob in generator:
@@ -39,7 +39,7 @@ def from_blob_load_data(account_name_,account_key_,container_name_,types):
         blob_df = pd.DataFrame()
         for blobname in blob_table['blobname']:
             blob_Class = blob_service.get_blob_to_text(container_name=container_name_, blob_name = blobname)
-            blob_String =blob_Class
+            blob_String =blob_Class.content
             blob_df1 = pd.read_csv(StringIO(blob_String),low_memory=False)
             blob_df = blob_df.append(blob_df1)        
         
@@ -164,7 +164,6 @@ def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_
             print("hello, no data lah")
         wakeup = wakeup.rename(index=str, columns={ 'time': 'wakeup'})   
         return wakeup
-
 
 
 def get_grouped(rawdata,types):
@@ -302,8 +301,6 @@ def check_awake_table(awake_table_input,raw_rms_input):
         awake_table_input = awake_table_input
     return awake_table_input
 
-
-
 def time_picker_single(raw_wake_table, types,rms_data_input):
     if types=='sleep':
         flag3 = setflag("02:00:01",0,'normal'); flag4 = setflag("22:59:59",1,'normal')
@@ -380,7 +377,6 @@ def bathroon_checker(bathroom_input):
     bathroom_input = bathroom_input[(bathroom_input['sum']!=1)|(bathroom_input['gap']==300)]
     return bathroom_input
 
-
 def bathroom_table_prep(room_acttime_input):
     '''
     This function is going to get the bathroom raw data, which has not been filtered by the awake table
@@ -396,8 +392,7 @@ def bathroom_table_prep(room_acttime_input):
     if bathroom_time.shape[0]==0:
         bathroom_time = bathroom_time
     return bathroom_time
-
-    
+   
 def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
     rms_data = rms_whole_input[rms_whole_input['hubid']==hub_id]
     blob_df = blob_df_whole_input[blob_df_whole_input['deviceid']==hub_id]
@@ -473,9 +468,6 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
             return wakeup.ix[0]['wakeup']
         if wakeup.shape[0]==0:            
             return ['nan']
-
-
-
 
     
 '''
