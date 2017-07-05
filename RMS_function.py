@@ -5,10 +5,12 @@ from dateutil import parser
 from datetime import date
 import pytz
 from pytz import timezone
-from azure.storage.blob import BlockBlobService
+from azure.storage.blob import BlobService
 from io import StringIO
 from decimal import Decimal
 
+day_now=0
+day_before=1
 def setflag(timestamp,day,tz):
     flag = date.today()- timedelta(day)
     flag = flag.strftime('%Y-%m-%d')
@@ -21,7 +23,7 @@ def setflag(timestamp,day,tz):
     return flag
 
 def from_blob_load_data(account_name_,account_key_,container_name_,types):
-    blob_service = BlockBlobService(account_name=account_name_, account_key = account_key_)
+    blob_service = BlobService(account_name=account_name_, account_key = account_key_)
     blobs = [];blob_date = []
     generator = blob_service.list_blobs(container_name_)
     for blob in generator:
@@ -39,7 +41,7 @@ def from_blob_load_data(account_name_,account_key_,container_name_,types):
         blob_df = pd.DataFrame()
         for blobname in blob_table['blobname']:
             blob_Class = blob_service.get_blob_to_text(container_name=container_name_, blob_name = blobname)
-            blob_String =blob_Class.content
+            blob_String =blob_Class
             blob_df1 = pd.read_csv(StringIO(blob_String),low_memory=False)
             blob_df = blob_df.append(blob_df1)        
         
@@ -56,17 +58,22 @@ def add_hubid2rmsdata(rms_raw):
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7ae74'),'hubid' ] = 'SG-04-testingN'
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af6a'),'hubid' ] = 'SG-04-starhub7'
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af1d'),'hubid' ] = 'SG-04-starhub8'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af61'),'hubid' ] = 'SG-04-inter002'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7adb0'),'hubid' ] = 'SG-04-testingQ'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af1b'),'hubid' ] = 'SG-04-testingQ'
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af25'),'hubid' ] = 'SG-04-inter001'
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7adae'),'hubid' ] = 'SG-04-testingK'
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af42'),'hubid' ] = 'SG-04-hub00001'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af68'),'hubid' ] = 'SG-04-hub00003'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af7d'),'hubid' ] = 'SG-04-hub00004'
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af77'),'hubid' ] = 'SG-04-swaritAK'
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7afff'),'hubid' ] = 'SG-04-aylaayla'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af6f'),'hubid' ] = 'SG-04-starhub6'    
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af6f'),'hubid' ] = 'SG-04-starhub6'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af70'),'hubid' ] = 'SG-04-hub00005'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af68'),'hubid' ] = 'SG-04-hub00013'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af5d'),'hubid' ] = 'SG-04-hub00010'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af4e'),'hubid' ] = 'SG-04-hub00009'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af28'),'hubid' ] = 'SG-04-hub00006'
 
     return rms_raw
+
 
 def del_neighbor(data,types):
     data = data.drop_duplicates('time',keep='first')#.reset_index(drop=True)
@@ -101,30 +108,48 @@ def remove_outliers(table):
 
 def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_input):
     if types=='sleep':
-        flag3 = setflag("02:00:01",0,'normal'); flag4 = setflag("22:59:59",1,'normal')
+        flag3 = setflag("02:00:01",day_now,'normal'); flag4 = setflag("20:59:59",day_before,'normal')
         sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
-        sleep.index = range(sleep.shape[0])
-        if sleep.shape[0]!=0:
-            sleep = sleep.loc[[0]]
+        if sleep.shape[0]>3:
+            sleep = sleep[sleep['gap']!=600]
         if sleep.shape[0]==0:
-            flag3 = setflag("23:00:00",1,'normal'); flag4 = setflag("19:59:59",1,'normal')
-            sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
-            if sleep.shape[0]!=0:
-                sleep = sleep.sort('time',ascending = 0)
-                sleep.index = range(sleep.shape[0])
-                sleep = sleep.loc[[0]]
-            if sleep.shape[0]==0:
-                flag3 = setflag("03:00:00",0,'normal'); flag4 = setflag("02:00:00",1,'normal')
-                sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
-                if sleep.shape[0]==0:
-                    print("no sleeping data")
-                if sleep.shape[0]!=0:
-                    sleep.index = range(sleep.shape[0])
-                    sleep = sleep.loc[[0]]
+            sleep = sleep; print("no sleep data")
+        if sleep.shape[0]==1:
+            sleep = sleep
+        if sleep.shape[0]==2:
+            if (sleep.at[sleep.index[1], 'time']-sleep.at[sleep.index[0], 'time']).seconds>=2400:
+                sleep.at[sleep.index[0], 'time'] = sleep.at[sleep.index[0], 'time']+timedelta(minutes=10)
+            check_frame = room_acttime_input
+            check_frame = room_acttime_input[(room_acttime_input['time']>sleep.at[sleep.index[0], 'time'])&(room_acttime_input['time']<sleep.at[sleep.index[1], 'time'])]
+            if check_frame.shape[0]==0:
+                sleep = sleep.loc[[sleep.index[0]]]
+            if check_frame.shape[0]==1:
+                if ((check_frame.at[check_frame.index[0],'time']-sleep.at[sleep.index[0],'time']).seconds<=300)|\
+                ((sleep.at[sleep.index[1],'time']-check_frame.at[check_frame.index[0],'time']).seconds<=300):
+                    sleep = sleep.loc[[sleep.index[0]]]
+                else:
+                    sleep = sleep.loc[[sleep.index[1]]]
+            if check_frame.shape[0]>1:
+                sleep = sleep.loc[[sleep.index[1]]]    
+        if sleep.shape[0]>2:
+            if (sleep.at[sleep.index[2], 'time']-sleep.at[sleep.index[1], 'time']).seconds>=2400:
+                sleep.at[sleep.index[1], 'time'] = sleep.at[sleep.index[1], 'time']+timedelta(minutes=10)
+            check_frame = room_acttime_input
+            check_frame = room_acttime_input[(room_acttime_input['time']>sleep.at[sleep.index[1], 'time'])&(room_acttime_input['time']<sleep.at[sleep.index[2], 'time'])]
+            if check_frame.shape[0]==0:
+                sleep = sleep.loc[[sleep.index[1]]]
+            if check_frame.shape[0]==1:
+                if ((check_frame.at[check_frame.index[0],'time']-sleep.at[sleep.index[1],'time']).seconds<=300)|\
+                ((sleep.at[sleep.index[2],'time']-check_frame.at[check_frame.index[0],'time']).seconds<=300):
+                    sleep = sleep.loc[[sleep.index[1]]]
+                else:
+                    sleep = sleep.loc[[sleep.index[2]]]
+            if check_frame.shape[0]>1:
+                sleep = sleep.loc[[sleep.index[2]]]
         sleep = sleep.rename(index=str, columns={ 'time': 'sleep'})
         return sleep
     if types =='wakeup':
-        flag3 = setflag("05:00:00",0,'normal')
+        flag3 = setflag("05:00:00",day_now,'normal')
         wakeup = raw_wake_table[raw_wake_table['time']>flag3]
         if wakeup.shape[0]>1:
             wakeup.index = range(wakeup.shape[0])
@@ -210,7 +235,7 @@ def time_normer(rawdata):
     rawdata['time'] = rawdata['time'].apply(lambda x: x[:19])
     rawdata['time'] = rawdata['time'].apply(lambda x: datetime.strptime(x,'%Y-%m-%dT%H:%M:%S')+timedelta(hours=8))
     rawdata['eventtime'] = rawdata['time'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S')) 
-    flag3 = setflag("09:00:01",0,'normal'); flag4 = setflag("19:59:59",1,'normal')
+    flag3 = setflag("09:00:01",day_now,'normal'); flag4 = setflag("19:59:59",day_before,'normal')
     rawdata = rawdata[(rawdata['time']<flag3)&(rawdata['time']>flag4)]
     return rawdata
 
@@ -241,10 +266,10 @@ def check_awake_table(awake_table_input,raw_rms_input):
      evening movement timestamp.
      if not, it will return timestamp following by the lone period blank
     '''
-    flag2=setflag("05:00:00",0,'normal')
+    flag2=setflag("05:00:00",day_now,'normal')
     awake_table_test1 = awake_table_input[awake_table_input['time']>flag2]
 
-    flag1=setflag("02:00:00",0,'normal')
+    flag1=setflag("02:00:00",day_now,'normal')
     awake_table_test2 = awake_table_input[awake_table_input['time']<flag1]
 
     rawdata = raw_rms_input.set_index(raw_rms_input['eventtime'].map(parser.parse))
@@ -294,33 +319,35 @@ def check_awake_table(awake_table_input,raw_rms_input):
             add_frame = add_frame.append(last_line)    
         if blank_time.shape[0]==0:
             add_frame = five_time_table[-1:]
-            add_frame['gap'] = 20;add_frame['sum'] = 20
-    
+            
+        add_frame['gap'] = 20;add_frame['sum'] = 20    
         awake_table_input = awake_table_input.append(add_frame)
     if rawdata.shape[0]==0:
         awake_table_input = awake_table_input
     return awake_table_input
 
+
+
 def time_picker_single(raw_wake_table, types,rms_data_input):
     if types=='sleep':
-        flag3 = setflag("02:00:01",0,'normal'); flag4 = setflag("22:59:59",1,'normal')
+        flag3 = setflag("02:00:01",day_now,'normal'); flag4 = setflag("22:59:59",day_before,'normal')
         test = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
         sleep = pd.DataFrame()
         if test.shape[0]>0:
-            flag3 = setflag("02:00:01",0,'normal'); flag4 = setflag("22:59:59",1,'normal')
+            flag3 = setflag("02:00:01",day_now,'normal'); flag4 = setflag("22:59:59",day_before,'normal')
             sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
             sleep.index = range(sleep.shape[0])
             if sleep.shape[0]!=0:
                 sleep = sleep.loc[[0]]
             if sleep.shape[0]==0:
-                flag3 = setflag("23:00:00",0,'normal'); flag4 = setflag("19:59:59",1,'normal')
+                flag3 = setflag("23:00:00",day_before,'normal'); flag4 = setflag("19:59:59",day_before,'normal')
                 sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
                 if sleep.shape[0]!=0:
                     sleep = sleep.sort('time',ascending = 0)
                     sleep.index = range(sleep.shape[0])
                     sleep = sleep.loc[[0]]
                 if sleep.shape[0]==0:
-                    flag3 = setflag("03:00:00",0,'normal'); flag4 = setflag("02:00:00",1,'normal')
+                    flag3 = setflag("03:00:00",day_now,'normal'); flag4 = setflag("02:00:00",day_now,'normal')
                     sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
                     if sleep.shape[0]==0:
                         print("no sleeping data")
@@ -337,7 +364,7 @@ def time_picker_single(raw_wake_table, types,rms_data_input):
         return sleep
 
     if types =='wakeup':
-        flag3 = setflag("05:00:00",0,'normal')
+        flag3 = setflag("05:00:00",day_now,'normal')
         wakeup = raw_wake_table[raw_wake_table['time']>flag3]
         if wakeup.shape[0]>1:
             wakeup.index = range(wakeup.shape[0])
@@ -377,6 +404,7 @@ def bathroon_checker(bathroom_input):
     bathroom_input = bathroom_input[(bathroom_input['sum']!=1)|(bathroom_input['gap']==300)]
     return bathroom_input
 
+
 def bathroom_table_prep(room_acttime_input):
     '''
     This function is going to get the bathroom raw data, which has not been filtered by the awake table
@@ -392,7 +420,8 @@ def bathroom_table_prep(room_acttime_input):
     if bathroom_time.shape[0]==0:
         bathroom_time = bathroom_time
     return bathroom_time
-   
+
+    
 def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
     rms_data = rms_whole_input[rms_whole_input['hubid']==hub_id]
     blob_df = blob_df_whole_input[blob_df_whole_input['deviceid']==hub_id]
@@ -416,14 +445,14 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
             if awake_table.shape[0]==1:
                 flag = awake_table['time'];flag.index = range(flag.shape[0])
                 bathroom_time = bathroom_table_prep(room_acttime)
-                flag1 = flag[0];flag2=setflag("05:00:00",0,'normal')
+                flag1 = flag[0];flag2=setflag("05:00:00",day_now,'normal')
                 if flag1<flag2:
                       bathroom_time = bathroom_time[bathroom_time['time']>flag1]
                 if flag1>flag2:
-                      flag3 = setflag("20:59:59",1,'normal')
+                      flag3 = setflag("20:59:59",day_before,'normal')
                       bathroom_time = bathroom_time[bathroom_time['time']>flag3]
                 awake_table = awake_table.append(bathroom_time)
-                awake_table = del_neighbor(awake_table)      
+                awake_table = del_neighbor(awake_table,'wakeup')      
                 #-------------deal with HV talbe & select the wake up time--------------------------
                 awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
                 wakeup = time_picker(awake_table,'wakeup',bathroom_time,rms_data,room_acttime)
@@ -433,10 +462,10 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
             if awake_table.shape[0]!=0:
                 awake_table = awake_table[awake_table['sum']>12]
             if awake_table.shape[0]>0:
-                flag = awake_table['time'];flag.index = range(flag.shape[0])
-                flag1 = flag[0]#;k = len(flag)-1;flag2 = flag[k]
+                #flag = awake_table['time'];flag.index = range(flag.shape[0])
+                #flag1 = flag[0]#;k = len(flag)-1;flag2 = flag[k]
                 bathroom_time = bathroom_table_prep(room_acttime)
-                bathroom_time = bathroom_time[bathroom_time['time']>flag1]
+                #bathroom_time = bathroom_time[bathroom_time['time']>flag1]
                 awake_table = awake_table.append(bathroom_time)
                 awake_table = del_neighbor(awake_table,'sleep')
                 awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
@@ -468,6 +497,9 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
             return wakeup.ix[0]['wakeup']
         if wakeup.shape[0]==0:            
             return ['nan']
+
+
+
 
     
 '''
