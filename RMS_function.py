@@ -108,7 +108,7 @@ def remove_outliers(table):
 
 def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_input):
     if types=='sleep':
-        flag3 = setflag("02:00:01",day_now,'normal'); flag4 = setflag("20:59:59",day_before,'normal')
+        flag3 = setflag("01:30:01",day_now,'normal'); flag4 = setflag("20:59:59",day_before,'normal')
         sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
         if sleep.shape[0]>3:
             sleep = sleep[sleep['gap']!=600]
@@ -151,42 +151,66 @@ def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_
     if types =='wakeup':
         flag3 = setflag("05:00:00",day_now,'normal')
         wakeup = raw_wake_table[raw_wake_table['time']>flag3]
-        if wakeup.shape[0]>1:
+        if wakeup.shape[0]>3:
+            wakeup = wakeup[wakeup['gap']!=600]
+        if wakeup.shape[0]==0:
+            wakeup = wakeup; print("no wake up data")
+        if wakeup.shape[0]==1:
+            wakeup = wakeup
+        if wakeup.shape[0]==2:
             wakeup.index = range(wakeup.shape[0])
+            # STEP ONE: check whether other room shows movement
             check_frame = room_acttime_input[(room_acttime_input['time']>wakeup.at[0, 'time'])&(room_acttime_input['time']<wakeup.at[1, 'time'])]
-            if (check_frame.shape[0]==0)&(wakeup.shape[0]>2):
+            if check_frame.shape[0]==0:
+                wakeup = wakeup.iloc[[1]]
+            if check_frame.shape[0]!=0:
+                # STEP TWO: check wether it shows no movement in bedroom
+                rms_data_check = rms_data_input[(rms_data_input['time']>(wakeup.at[0,'time']+timedelta(minutes=5)))&(rms_data_input['time']<(wakeup.at[1,'time']-timedelta(minutes=5)))]
+                if rms_data_check.shape[0]<=5:
+                    wakeup = wakeup.loc[[0]]
+                if rms_data_check.shape[0]>5:
+                    # STEP THREE: check wether go to bathroom within two wakeup time
+                    bathroom_check = bathroom_table[(bathroom_table['time']>=(wakeup.at[0,'time'])) & (bathroom_table['time']<(wakeup.at[1,'time']))]
+                    if bathroom_check.shape[0]==0:
+                        wakeup = wakeup.loc[[1]]
+                    if bathroom_check.shape[0]>0:
+                        wakeup = wakeup.loc[[0]]
+        if wakeup.shape[0]>2:
+            wakeup.index = range(wakeup.shape[0])
+            # STEP ONE: check whether other room shows movement
+            check_frame = room_acttime_input[(room_acttime_input['time']>wakeup.at[0, 'time'])&(room_acttime_input['time']<wakeup.at[1, 'time'])]
+            if check_frame.shape[0]!=0:
+                # STEP TWO: check wether it shows no movement in bedroom            
+                rms_data_check = rms_data_input[(rms_data_input['time']>(wakeup.at[0,'time']+timedelta(minutes=5)))&(rms_data_input['time']<(wakeup.at[1,'time']-timedelta(minutes=5)))]
+                if rms_data_check.shape[0]<=5:
+                    wakeup = wakeup.loc[[0]]
+                if rms_data_check.shape[0]>5:
+                    # STEP THREE: check wether go to bathroom within two wakeup time
+                    bathroom_check = bathroom_table[(bathroom_table['time']>=(wakeup.at[0,'time'])) & (bathroom_table['time']<(wakeup.at[1,'time']))]
+                    if bathroom_check.shape[0]==0:
+                        rms_data_check = rms_data_input[(rms_data_input['time']>(wakeup.at[1,'time']+timedelta(minutes=5)))&(rms_data_input['time']<(wakeup.at[2,'time']-timedelta(minutes=5)))]
+                        if rms_data_check.shape[0]>5:
+                            wakeup = wakeup.loc[[2]]
+                        if rms_data_check.shape[0]<=5:
+                            wakeup = wakeup.loc[[1]]
+                    if bathroom_check.shape[0]>0:
+                        wakeup = wakeup.loc[[0]]
+            if check_frame.shape[0]==0:
+                # if gap one shows totally blank, go directly to next gap
                 check_frame = room_acttime_input[(room_acttime_input['time']>wakeup.at[1, 'time'])&(room_acttime_input['time']<wakeup.at[2, 'time'])]
                 if check_frame.shape[0]==0:
-                    wakeup = wakeup.iloc[[2]]
+                    wakeup = wakeup.loc[[2]]
                 if check_frame.shape[0]!=0:
-                    wakeup = wakeup.iloc[[1]]
-            if (check_frame.shape[0]==0)&(wakeup.shape[0]==2):
-                wakeup = wakeup.iloc[[1]]
-            if (check_frame.shape[0]>0)&(wakeup.shape[0]==2):
-                check_frame = get_check(rms_data_input,wakeup)
-                check_frame = check_frame[check_frame['gap']==300]
-                if check_frame.shape[0]>2:
-                    wakeup = wakeup.iloc[[0]]
-                if check_frame.shape[0]<3:
-                    wakeup = wakeup.iloc[[1]]
-            if (check_frame.shape[0]>0)&(wakeup.shape[0]>2):
-                check_frame = get_check(rms_data_input,wakeup)
-                check_frame = check_frame[check_frame['gap']==300]
-                if check_frame.shape[0]>2:
-                    wakeup = wakeup.iloc[[0]]
-                if check_frame.shape[0]<3:
-                    wakeup.drop(wakeup.index[0], inplace=True)
-                    wakeup.index = range(wakeup.shape[0])
-                    check_frame = get_check(rms_data_input,wakeup)
-                    check_frame = check_frame[check_frame['gap']==300]
-                    if check_frame.shape[0]>2:
-                        wakeup = wakeup.iloc[[0]]
-                    if check_frame.shape[0]<3:
-                        wakeup = wakeup.iloc[[1]]
-        if wakeup.shape[0]==1:
-            print(wakeup)
-        if wakeup.shape[0]==0:
-            print("hello, no data lah")
+                    rms_data_check = rms_data_input[(rms_data_input['time']>(wakeup.at[1,'time']))&(rms_data_input['time']<(wakeup.at[2,'time']))]
+                    if rms_data_check.shape[0]<=5:
+                        wakeup = wakeup.loc[[1]]
+                    if rms_data_check.shape[0]>5:
+                        # STEP THREE: check wether go to bathroom within two wakeup time
+                        bathroom_check = bathroom_table[(bathroom_table['time']>=(wakeup.at[1,'time'])) & (bathroom_table['time']<(wakeup.at[2,'time']))]
+                        if bathroom_check.shape[0]==0:
+                            wakeup = wakeup.loc[[2]]
+                        if bathroom_check.shape[0]>0:
+                            wakeup = wakeup.loc[[1]]
         wakeup = wakeup.rename(index=str, columns={ 'time': 'wakeup'})   
         return wakeup
 
@@ -432,6 +456,7 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
         room_acttime = get_grouped(blob_df,'bathroom')
         print("multiroom user")
         if types=='wakeup':
+            #awake_table = awake_table[awake_table['sum']>12]
             if awake_table.shape[0]>1:
                 flag = awake_table['time'];flag.index = range(flag.shape[0])
                 flag1 = flag[0]#;k = len(flag)-1;flag2 = flag[k]
@@ -453,26 +478,32 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
                       bathroom_time = bathroom_time[bathroom_time['time']>flag3]
                 awake_table = awake_table.append(bathroom_time)
                 awake_table = del_neighbor(awake_table,'wakeup')      
-                #-------------deal with HV talbe & select the wake up time--------------------------
                 awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
                 wakeup = time_picker(awake_table,'wakeup',bathroom_time,rms_data,room_acttime)
             if awake_table.shape[0]==0:
-                wakeup = pd.DataFrame(); wakeup['wakeup'] = 'nan'            
+                bathroom_time = bathroom_table_prep(room_acttime)
+                if bathroom_time.shape[0]!=0:
+                    bathroom_time = del_neighbor(bathroom_time,'wakeup')
+                    wakeup = time_picker(bathroom_time,'wakeup',bathroom_time,rms_data,room_acttime)
+                if bathroom_time.shape[0]==0:    
+                    wakeup = pd.DataFrame(); wakeup['wakeup'] = 'nan'            
         if types=='sleep':
+            bathroom_time = bathroom_table_prep(room_acttime)
             if awake_table.shape[0]!=0:
                 awake_table = awake_table[awake_table['sum']>12]
             if awake_table.shape[0]>0:
-                #flag = awake_table['time'];flag.index = range(flag.shape[0])
-                #flag1 = flag[0]#;k = len(flag)-1;flag2 = flag[k]
-                bathroom_time = bathroom_table_prep(room_acttime)
-                #bathroom_time = bathroom_time[bathroom_time['time']>flag1]
                 awake_table = awake_table.append(bathroom_time)
                 awake_table = del_neighbor(awake_table,'sleep')
                 awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
                 sleep = time_picker(awake_table,'sleep',bathroom_time,rms_data,room_acttime)
             if awake_table.shape[0]==0:
-                sleep = pd.DataFrame(); sleep['wakeup'] = 'nan'
+                if bathroom_time.shape[0]!=0:
+                    bathroom_time = del_neighbor(bathroom_time,'sleep') 
+                    sleep = time_picker(bathroom_time,'sleep',bathroom_time,rms_data,room_acttime)
+                if bathroom_time.shape[0]==0:
+                    sleep = pd.DataFrame(); sleep['wakeup'] = 'nan'
     if blob_df.shape[0]==0:
+        print("RMS only")
         bathroom_time = pd.DataFrame()
         if awake_table.shape[0]>1:
             #awake_table['time'] = awake_table.index
