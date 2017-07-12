@@ -70,7 +70,8 @@ def add_hubid2rmsdata(rms_raw):
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af68'),'hubid' ] = 'SG-04-hub00013'
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af5d'),'hubid' ] = 'SG-04-hub00010'
     rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af4e'),'hubid' ] = 'SG-04-hub00009'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af28'),'hubid' ] = 'SG-04-hub00006'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af4a'),'hubid' ] = 'SG-04-hub00006'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af60'),'hubid' ] = 'SG-04-hub00016'
 
     return rms_raw
 
@@ -329,7 +330,7 @@ def check_awake_table(awake_table_input,raw_rms_input):
                     add_line = blank_time.loc[[i]]
                     add_frame = add_frame.append(add_line)
                 i=i+1
-            add_frame['time'] = add_frame['time'].apply(lambda x: x-timedelta(seconds=300))
+            #add_frame['time'] = add_frame['time'].apply(lambda x: x-timedelta(seconds=300))
             add_frame = add_frame.append(last_line)    
 
         if blank_time.shape[0]==2:
