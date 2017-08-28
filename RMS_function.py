@@ -33,8 +33,8 @@ def from_blob_load_data(account_name_,account_key_,container_name_,types):
     blob_table['date'] = blob_date
     blob_table['blobname'] = blobs    
 
-    Today = date.today(); Today = Today.strftime('%Y-%m-%d')
-    Yst = date.today() - timedelta(1) ; Yst = Yst.strftime('%Y-%m-%d')
+    Today = date.today()- timedelta(days=day_now); Today = Today.strftime('%Y-%m-%d')
+    Yst = date.today() - timedelta(day_before) ; Yst = Yst.strftime('%Y-%m-%d')
     blob_table = blob_table[(blob_table['date']==Today)|(blob_table['date']==Yst)]    
 
     if blob_table.shape[0]>0:
@@ -54,27 +54,34 @@ def from_blob_load_data(account_name_,account_key_,container_name_,types):
     return blob_df
 
 def add_hubid2rmsdata(rms_raw):
-
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7ae74'),'hubid' ] = 'SG-04-testingN'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af6a'),'hubid' ] = 'SG-04-starhub7'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af1d'),'hubid' ] = 'SG-04-starhub8'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af1b'),'hubid' ] = 'SG-04-testingQ'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af25'),'hubid' ] = 'SG-04-inter001'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7adae'),'hubid' ] = 'SG-04-testingK'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af42'),'hubid' ] = 'SG-04-hub00001'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af7d'),'hubid' ] = 'SG-04-hub00004'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af77'),'hubid' ] = 'SG-04-swaritAK'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7afff'),'hubid' ] = 'SG-04-aylaayla'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af6f'),'hubid' ] = 'SG-04-starhub6'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af70'),'hubid' ] = 'SG-04-hub00005'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af68'),'hubid' ] = 'SG-04-hub00013'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af5d'),'hubid' ] = 'SG-04-hub00010'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af4e'),'hubid' ] = 'SG-04-hub00009'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af4a'),'hubid' ] = 'SG-04-hub00006'
-    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af60'),'hubid' ] = 'SG-04-hub00016'
+    
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7ae74' ),'hubid' ] = 'SG-04-testingN'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af6a' ),'hubid' ] = 'SG-04-hub00016'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af1d' ),'hubid' ] = 'SG-04-hub00018'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af1b' ),'hubid' ] = 'SG-04-testingQ'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af25' ),'hubid' ] = 'SG-04-inter001'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7adae' ),'hubid' ] = 'SG-04-testingK'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af42' ),'hubid' ] = 'SG-04-hub00001'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af7d' ),'hubid' ] = 'SG-04-hub00004'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af70' ),'hubid' ] = 'SG-04-hub00005'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af68' ),'hubid' ] = 'SG-04-hub00013'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af5d' ),'hubid' ] = 'SG-04-hub00010'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af4e' ),'hubid' ] = 'SG-04-hub00009'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af4a' ),'hubid' ] = 'SG-04-hub00006'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af7b' ),'hubid' ] = 'SG-04-hub00015'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af64' ),'hubid' ] = 'SG-04-hub00002'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af61' ),'hubid' ] = 'SG-04-hub00012'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af5b' ),'hubid' ] = 'SG-04-hub00008'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af2a' ),'hubid' ] = 'SG-04-hub00007'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af21' ),'hubid' ] = 'SG-04-hub00014'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af1f' ),'hubid' ] = 'SG-04-interdev'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af60' ),'hubid' ] = 'SG-04-starhub7'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af1e' ),'hubid' ] = 'SG-04-hub00019'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af6f' ),'hubid' ] = 'SG-04-hub00020'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af5e' ),'hubid' ] = 'SG-04-hub00021'
+    rms_raw.loc[(rms_raw['gwId'] == 'e47fb2f7af47' ),'hubid' ] = 'SG-04-hub00017'
 
     return rms_raw
-
 
 def del_neighbor(data,types):
     data = data.drop_duplicates('time',keep='first')#.reset_index(drop=True)
@@ -187,10 +194,10 @@ def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_
                     wakeup = wakeup.loc[[0]]
                 if rms_data_check.shape[0]>5:
                     # STEP THREE: check wether go to bathroom within two wakeup time
-                    bathroom_check = bathroom_table[(bathroom_table['time']>=(wakeup.at[0,'time'])) & (bathroom_table['time']<(wakeup.at[1,'time']))]
+                    bathroom_check = bathroom_table[(bathroom_table['time']>(wakeup.at[0,'time'])) & (bathroom_table['time']<(wakeup.at[1,'time']))]
                     if bathroom_check.shape[0]==0:
                         rms_data_check = rms_data_input[(rms_data_input['time']>(wakeup.at[1,'time']+timedelta(minutes=5)))&(rms_data_input['time']<(wakeup.at[2,'time']-timedelta(minutes=5)))]
-                        if rms_data_check.shape[0]>5:
+                        if rms_data_check.shape[0]>5: #no bathroom but have movement in bedroom
                             wakeup = wakeup.loc[[2]]
                         if rms_data_check.shape[0]<=5:
                             wakeup = wakeup.loc[[1]]
@@ -491,7 +498,7 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
         if types=='sleep':
             bathroom_time = bathroom_table_prep(room_acttime)
             if awake_table.shape[0]!=0:
-                awake_table = awake_table[awake_table['sum']>12]
+                awake_table = awake_table[awake_table['sum']>10]
             if awake_table.shape[0]>0:
                 awake_table = awake_table.append(bathroom_time)
                 awake_table = del_neighbor(awake_table,'sleep')
@@ -513,7 +520,7 @@ def final_generator(hub_id,types,rms_whole_input,blob_df_whole_input):
                 awake_table = del_neighbor(awake_table,'wakeup')
                 wakeup = time_picker_single(awake_table,'wakeup',rms_data)
             if types=='sleep':
-                awake_table = awake_table[awake_table['sum']>12]
+                #awake_table = awake_table[awake_table['sum']>12]
                 awake_table = del_neighbor(awake_table,'sleep')
                 sleep = time_picker_single(awake_table,'sleep',rms_data)
         else:
