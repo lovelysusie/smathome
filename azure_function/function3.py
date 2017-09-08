@@ -57,8 +57,8 @@ def data_from_blob(container_name_input,blob_name,types='main'):
     return blob_df_whole
 
 
-account_name='blobsensordata'
-account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
+account_name='####'
+account_key='####'
 
 Today = date.today(); Today = Today.strftime('%Y-%m-%d')
 
