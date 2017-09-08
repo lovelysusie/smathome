@@ -106,8 +106,8 @@ def setflag(timestamp,day,tz):
         flag = flag
     return flag
 
-account_name='blobsensordata'
-account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
+account_name= '####'
+account_key='####'
 
 container_name = 'rmsinput'
 rms_whole = from_blob_load_data(account_name_ = account_name,account_key_=account_key,container_name_=container_name,types='rms')
