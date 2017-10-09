@@ -38,7 +38,7 @@ def from_blob_load_data(account_name_,account_key_,container_name_,types):
             blob_df = blob_df.append(blob_df1)        
         
         blob_df.index = range(blob_df.shape[0])
-        print(blob_df.shape[0])
+        #print(blob_df.shape[0])
         if types=='PIR':
             blob_df = blob_df#[blob_df['tasklocation']=='Bathroom']
     else:
@@ -82,44 +82,36 @@ def del_neighbor(data,types):
     if types == 'wakeup':
         data['gap'] = data['time'].diff()
         data['gap'].ix[0] = timedelta(seconds=1000)
-        data['gap'] = data['gap'].apply(lambda x:x.seconds)
-        data = data[data['gap']>300]
+        data = data[data['gap']>timedelta(seconds=300)]
     if types == 'sleep':
-        test = data['time'].diff().to_frame()  
-        test = test.drop(test.index[[0]])
-        test['time'] = test['time'].apply(lambda x: x.seconds)
-        test = test['time'].tolist() 
-        test.append(300)        
+        test = data['time'].diff().tolist()
+        test.pop(0)
+        test.append(timedelta(seconds=300))        
         data['gap'] = test
-        data = data[data['gap']>400]
+        data = data[data['gap']>timedelta(seconds=300)]
     return data
 
 def remove_outliers(table):
-    outliers = table.to_frame()
-    outliers['time'] = outliers.index
-    outliers = outliers[outliers[0]>11]
-    outliers.index = range(outliers.shape[0])            
     i=1 ;n = table.shape[0]-1    
     while i<n:
         if table[i]>11:
             table[i]=max(table[i-1],table[i+1])
         i = i+1
-    return table, outliers    
+    return table    
 
 def get_agv_int(rms_data_input):
     rms_data_input['eventtime'] = rms_data_input['eventtime'].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))  
     intensity = rms_data_input.set_index('eventtime').groupby(pd.TimeGrouper(freq='5Min')).size()  
-    intensity = intensity.to_frame()
-    intensity = intensity[intensity[0]!=0]  
-    output = intensity[0].mean()    
+    intensity = list(filter(lambda x: x != 0,intensity))
+    output = sum(intensity)/len(intensity)    
     return output
 
 def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_input):
     if types=='sleep':
         flag3 = setflag("01:30:01",day_now); flag4 = setflag("20:59:59",day_before)
         sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
-        if sleep.shape[0]>3:
-            sleep = sleep[sleep['gap']!=600]
+        #if sleep.shape[0]>3:
+            #sleep = sleep[sleep['gap']!=600]
         if sleep.shape[0]==0:
             sleep = sleep; print("no sleep data")
         if sleep.shape[0]==1:
@@ -127,7 +119,7 @@ def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_
         if sleep.shape[0]==2:
             if (sleep.at[sleep.index[1], 'time']-sleep.at[sleep.index[0], 'time']).seconds>=2400:
                 sleep.at[sleep.index[0], 'time'] = sleep.at[sleep.index[0], 'time']+timedelta(minutes=10)
-            check_frame = room_acttime_input
+            #check_frame = room_acttime_input
             check_frame = room_acttime_input[(room_acttime_input['time']>sleep.at[sleep.index[0], 'time'])&(room_acttime_input['time']<sleep.at[sleep.index[1], 'time'])]
             if check_frame.shape[0]==0:
                 sleep = sleep.loc[[sleep.index[0]]]
@@ -159,8 +151,8 @@ def time_picker(raw_wake_table,types,bathroom_table,rms_data_input,room_acttime_
     if types =='wakeup':
         flag3 = setflag("05:00:00",day_now)
         wakeup = raw_wake_table[raw_wake_table['time']>flag3]
-        if wakeup.shape[0]>3:
-            wakeup = wakeup[wakeup['gap']!=600]
+#        if wakeup.shape[0]>3:
+#            wakeup = wakeup[wakeup['gap']!=600]
         if wakeup.shape[0]==0:
             wakeup = wakeup; print("no wake up data")
         if wakeup.shape[0]==1:
@@ -217,7 +209,7 @@ def get_grouped(rawdata,types):
         if rawdata.shape[0]!=0:
             one_time_table = rawdata.groupby(pd.TimeGrouper('60s')).size() 
             five_time_table = rawdata.groupby(pd.TimeGrouper('300s')).size()    
-            one_time_table,outliers = remove_outliers(one_time_table)
+            one_time_table = remove_outliers(one_time_table)
             time_table = one_time_table.to_frame()
             time_table = time_table.rename(index=str, columns={ 0: "1min"})
             time_table['sum'] = pd.rolling_sum(time_table['1min'],5)
@@ -243,9 +235,8 @@ def time_normer(rawdata):
     rawdata['time'] = rawdata['time'].apply(lambda x: x[:19])
     rawdata['time'] = rawdata['time'].apply(lambda x: datetime.strptime(x,'%Y-%m-%dT%H:%M:%S')+timedelta(hours=8))
     rawdata['eventtime'] = rawdata['time'].apply(lambda x: x.strftime('%Y-%m-%d %H:%M:%S')) 
-    flag3 = setflag("09:00:01",day_now); flag4 = setflag("19:59:59",day_before)
-    rawdata = rawdata[(rawdata['time']<flag3)&(rawdata['time']>flag4)]
-    return rawdata
+    #flag3 = setflag("09:00:01",day_now); flag4 = setflag("19:59:59",day_before)
+    return rawdata[(rawdata['time']<setflag("09:00:01",day_now))&(rawdata['time']>setflag("19:59:59",day_before))]
 
 
 def get_check(raw_rms_dara,wakeup_input):
@@ -274,7 +265,7 @@ def check_awake_table(awake_table_input,raw_rms_input):
      evening movement timestamp.
      if not, it will return timestamp following by the lone period blank
     '''
-    flag2=setflag("05:00:00",day_now)
+    flag2 = setflag("05:00:00",day_now)
     awake_table_test1 = awake_table_input[awake_table_input['time']>flag2]
 
     flag1=setflag("02:00:00",day_now)
@@ -429,8 +420,6 @@ def bathroom_table_prep(room_acttime_input):
     bathroom_time['time'] = bathroom_time['time'].apply(lambda x: x-timedelta(minutes = 5))
     if bathroom_time.shape[0]>0:
         bathroom_time = bathroon_checker(bathroom_time)
-    if bathroom_time.shape[0]==0:
-        bathroom_time = bathroom_time
     return bathroom_time
 
     
