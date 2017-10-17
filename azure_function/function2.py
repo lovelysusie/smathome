@@ -8,7 +8,6 @@ import pandas as pd
 from datetime import datetime
 from datetime import timedelta
 from datetime import date
-import pytz
 from azure.storage.blob import BlockBlobService
 from io import StringIO
 from azure.storage.blob import AppendBlobService
@@ -17,20 +16,31 @@ from dateutil import parser
 day_now=0
 day_before=1
 
-def setflag(timestamp,day,tz):
+def setflag(timestamp,day):
     flag = date.today()- timedelta(day)
     flag = flag.strftime('%Y-%m-%d')
     flag = flag + ' '+ timestamp
-    flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
-    return flag
+    return datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
 
 def get_grouped(rawdata,types):
     rawdata = rawdata.set_index(rawdata['eventtime'].map(parser.parse))
+    if types=='bathroom':
+        room_list = rawdata['tasklocation'].unique().tolist()
+        room_whole = pd.DataFrame()
+        for room in room_list:
+            room_frame = rawdata[rawdata['tasklocation']==room]
+            room_frame = room_frame.groupby(pd.TimeGrouper('300s')).max()
+            room_frame = room_frame[['value','tasklocation']]
+            room_whole = room_whole.append(room_frame)
+        room_whole = room_whole.dropna(subset=['value'], how='all')
+        room_whole['time'] = room_whole.index
+        room_whole.index = range(room_whole.shape[0])
+        return room_whole
     if types=='bedroom':
         if rawdata.shape[0]!=0:
             one_time_table = rawdata.groupby(pd.TimeGrouper('60s')).size() 
             five_time_table = rawdata.groupby(pd.TimeGrouper('300s')).size()    
-            one_time_table,outliers = remove_outliers(one_time_table)
+            one_time_table = remove_outliers(one_time_table)
             time_table = one_time_table.to_frame()
             time_table = time_table.rename(index=str, columns={ 0: "1min"})
             time_table['sum'] = pd.rolling_sum(time_table['1min'],5)
@@ -49,6 +59,7 @@ def get_grouped(rawdata,types):
         else:
             awake_table = pd.DataFrame()
         return awake_table
+
     
 def check_awake_table(awake_table_input,raw_rms_input):
     '''
@@ -56,10 +67,10 @@ def check_awake_table(awake_table_input,raw_rms_input):
      evening movement timestamp.
      if not, it will return timestamp following by the lone period blank
     '''
-    flag2=setflag("05:00:00",day_now,'normal')
+    flag2=setflag("05:00:00",day_now)
     awake_table_test1 = awake_table_input[awake_table_input['time']>flag2]
 
-    flag1=setflag("02:00:00",day_now,'normal')
+    flag1=setflag("02:00:00",day_now)
     awake_table_test2 = awake_table_input[awake_table_input['time']<flag1]
 
     rawdata = raw_rms_input.set_index(raw_rms_input['eventtime'].map(parser.parse))
@@ -126,21 +137,17 @@ def data_from_blob(container_name_input,blob_name,types='main'):
     return blob_df_whole
 
 def remove_outliers(table):
-    outliers = table.to_frame()
-    outliers['time'] = outliers.index
-    outliers = outliers[outliers[0]>11]
-    outliers.index = range(outliers.shape[0])            
     i=1 ;n = table.shape[0]-1    
     while i<n:
         if table[i]>11:
             table[i]=max(table[i-1],table[i+1])
         i = i+1
-    return table, outliers    
+    return table    
 
 account_name='####'
 account_key='####'
 
-Today = date.today(); Today = Today.strftime('%Y-%m-%d')
+Today = date.today().strftime('%Y-%m-%d')
 
 container_name = 'rmsinputclean'
 rms_whole = data_from_blob(container_name,Today)
@@ -164,3 +171,8 @@ for hub in hublist['HUB ID']:
     append_blob_service.create_blob(container_name, hub_id)
     append_blob_service.append_blob_from_text(container_name, hub_id, rms)
     
+
+
+
+
+
