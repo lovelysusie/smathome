@@ -80,6 +80,9 @@ for hub in hublist['HUB ID']:
     if blob_df.shape[0]!=0:     
         room_acttime = get_grouped(blob_df,'bathroom')
         print("multiroom user")
+    if blob_df.shape[0]==0:
+        room_acttime = pd.DataFrame()
+        print("RMS ONLY")
     pir = room_acttime.to_csv()
     append_blob_service.create_blob(container_name, hub_id)
     append_blob_service.append_blob_from_text(container_name, hub_id, pir)
