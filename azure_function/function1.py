@@ -9,7 +9,7 @@ import sys, os.path
 import os
 import json
 import time
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'myvenv/Lib/site-packages')))
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'myvenv/Lib/site-packages')))
 
 import pandas as pd
 from datetime import datetime
@@ -106,8 +106,8 @@ def setflag(timestamp,day,tz):
         flag = flag
     return flag
 
-account_name= '####'
-account_key='####'
+account_name='blobsensordata'
+account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
 
 container_name = 'rmsinput'
 rms_whole = from_blob_load_data(account_name_ = account_name,account_key_=account_key,container_name_=container_name,types='rms')
