@@ -1,3 +1,9 @@
+import sys, os.path
+import os
+import json
+import time
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'myvenv/Lib/site-packages')))
+
 import pandas as pd
 from datetime import datetime
 from datetime import timedelta
@@ -9,12 +15,11 @@ from io import StringIO
 day_now=0
 day_before=1
 
-def setflag(timestamp,day,tz):
+def setflag(timestamp,day):
     flag = date.today()- timedelta(day)
     flag = flag.strftime('%Y-%m-%d')
     flag = flag + ' '+ timestamp
-    flag = datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
-    return flag
+    return datetime.strptime(flag, "%Y-%m-%d %H:%M:%S")
 
 
 def del_neighbor(data,types):
@@ -24,29 +29,14 @@ def del_neighbor(data,types):
     if types == 'wakeup':
         data['gap'] = data['time'].diff()
         data['gap'].ix[0] = timedelta(seconds=1000)
-        data['gap'] = data['gap'].apply(lambda x:x.seconds)
-        data = data[data['gap']>300]
+        data = data[data['gap']>timedelta(seconds=300)]
     if types == 'sleep':
-        test = data['time'].diff().to_frame()  
-        test = test.drop(test.index[[0]])
-        test['time'] = test['time'].apply(lambda x: x.seconds)
-        test = test['time'].tolist() 
-        test.append(300)        
+        test = data['time'].diff().tolist()
+        test.pop(0)
+        test.append(timedelta(seconds=300))        
         data['gap'] = test
-        data = data[data['gap']>400]
-    return data
+    return data[data['gap']>timedelta(seconds=300)]
 
-def remove_outliers(table):
-    outliers = table.to_frame()
-    outliers['time'] = outliers.index
-    outliers = outliers[outliers[0]>11]
-    outliers.index = range(outliers.shape[0])            
-    i=1 ;n = table.shape[0]-1    
-    while i<n:
-        if table[i]>11:
-            table[i]=max(table[i-1],table[i+1])
-        i = i+1
-    return table, outliers    
 
 def get_agv_int(rms_data_input):
     rms_data_input['eventtime'] = rms_data_input['eventtime'].apply(lambda x: datetime.strptime(x, "%Y-%m-%d %H:%M:%S"))  
@@ -56,18 +46,28 @@ def get_agv_int(rms_data_input):
     output = intensity[0].mean()    
     return output
 
+
+def bef_aft(wakeupinput,rms_data_input):
+    wakeupinput.index = range(wakeupinput.shape[0])
+    rms_data_check = rms_data_input[(rms_data_input['time']>(wakeupinput.at[0,'time']+timedelta(minutes=5)))&(rms_data_input['time']<(wakeupinput.at[1,'time']-timedelta(minutes=5)))]
+    if rms_data_check.shape[0]>4:
+        agv_int = get_agv_int(rms_data_check)
+        if agv_int<=5:
+            wakeupinput = wakeupinput.loc[[1]]
+        else:
+            wakeupinput = wakeupinput.loc[[0]]
+    if rms_data_check.shape[0] <= 4:
+        wakeupinput = wakeupinput.loc[[0]]
+    return wakeupinput
+
+
 def time_picker(raw_wake_table,types,rms_data_input,room_acttime_input):
     if types=='sleep':
-        flag3 = setflag("01:30:01",day_now,'normal'); flag4 = setflag("20:59:59",day_before,'normal')
-        sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
-        if sleep.shape[0]==0:
-            sleep = sleep; print("no sleep data")
-        if sleep.shape[0]==1:
-            sleep = sleep
+        sleep = raw_wake_table[(raw_wake_table['time']<setflag("01:30:01",day_now))&(raw_wake_table['time']>setflag("20:59:59",day_before))]
         if sleep.shape[0]==2:
             if (sleep.at[sleep.index[1], 'time']-sleep.at[sleep.index[0], 'time']).seconds>=2400:
                 sleep.at[sleep.index[0], 'time'] = sleep.at[sleep.index[0], 'time']+timedelta(minutes=10)
-            check_frame = room_acttime_input
+            #check_frame = room_acttime_input
             check_frame = room_acttime_input[(room_acttime_input['time']>sleep.at[sleep.index[0], 'time'])&(room_acttime_input['time']<sleep.at[sleep.index[1], 'time'])]
             if check_frame.shape[0]==0:
                 sleep = sleep.loc[[sleep.index[0]]]
@@ -97,40 +97,18 @@ def time_picker(raw_wake_table,types,rms_data_input,room_acttime_input):
         sleep = sleep.rename(index=str, columns={ 'time': 'sleep'})
         return sleep
     if types =='wakeup':
-        flag3 = setflag("05:00:00",day_now,'normal')
-        wakeup = raw_wake_table[raw_wake_table['time']>flag3]
-        if wakeup.shape[0]>3:
-            wakeup = wakeup[wakeup['gap']!=600]
-        if wakeup.shape[0]==0:
-            wakeup = wakeup; print("no wake up data")
-        if wakeup.shape[0]==1:
-            wakeup = wakeup
+        #flag3 = setflag("05:00:00",day_now)
+        wakeup = raw_wake_table[raw_wake_table['time']>setflag("05:00:00",day_now)]
         if wakeup.shape[0]==2:
-            wakeup.index = range(wakeup.shape[0])
-            rms_data_check = rms_data_input[(rms_data_input['time']>(wakeup.at[0,'time']+timedelta(minutes=5)))&(rms_data_input['time']<(wakeup.at[1,'time']-timedelta(minutes=5)))]
-            if rms_data_check.shape[0]>4:
-                agv_int = get_agv_int(rms_data_check)
-                if agv_int<=5:
-                    wakeup = wakeup.loc[[1]]
-                if agv_int>5:
-                    wakeup = wakeup.loc[[0]]
-            if rms_data_check.shape[0] <= 4:
-                wakeup = wakeup.loc[[0]]
+        	bef_aft(wakeup,rms_data_input)
         if wakeup.shape[0]>2:
             wakeup.index = range(wakeup.shape[0])
             rms_data_check = rms_data_input[(rms_data_input['time']>(wakeup.at[0,'time']+timedelta(minutes=5)))&(rms_data_input['time']<(wakeup.at[1,'time']-timedelta(minutes=5)))]                
             if rms_data_check.shape[0]>4:
                 agv_int = get_agv_int(rms_data_check)
                 if agv_int<=5:
-                    rms_data_check2 = rms_data_input[(rms_data_input['time']>(wakeup.at[1,'time']+timedelta(minutes=5)))&(rms_data_input['time']<(wakeup.at[2,'time']-timedelta(minutes=5)))]
-                    if rms_data_check2.shape[0]>5:
-                        agv_int2 = get_agv_int(rms_data_check2)
-                        if agv_int2<=5:
-                            wakeup = wakeup.loc[[2]]
-                        if agv_int2 >5:
-                            wakeup = wakeup.loc[[1]]
-                    if rms_data_check2.shape[0]<=5:
-                        wakeup = wakeup.loc[[1]]
+                    wakeup.drop(wakeup.index[[0]])
+                    wakeup = bef_aft(wakeup,rms_data_input)
                 if agv_int>5:
                     wakeup = wakeup.loc[[0]]
             if rms_data_check.shape[0] <= 4:
@@ -161,24 +139,24 @@ def get_check(raw_rms_dara,wakeup_input):
 
 def time_picker_single(raw_wake_table, types,rms_data_input):
     if types=='sleep':
-        flag3 = setflag("02:00:01",day_now,'normal'); flag4 = setflag("22:59:59",day_before,'normal')
+        flag3 = setflag("02:00:01",day_now); flag4 = setflag("22:59:59",day_before)
         test = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
         sleep = pd.DataFrame()
         if test.shape[0]>0:
-            flag3 = setflag("02:00:01",day_now,'normal'); flag4 = setflag("22:59:59",day_before,'normal')
+            flag3 = setflag("02:00:01",day_now); flag4 = setflag("22:59:59",day_before)
             sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
             sleep.index = range(sleep.shape[0])
             if sleep.shape[0]!=0:
                 sleep = sleep.loc[[0]]
             if sleep.shape[0]==0:
-                flag3 = setflag("23:00:00",day_before,'normal'); flag4 = setflag("19:59:59",day_before,'normal')
+                flag3 = setflag("23:00:00",day_before); flag4 = setflag("19:59:59",day_before)
                 sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
                 if sleep.shape[0]!=0:
                     sleep = sleep.sort('time',ascending = 0)
                     sleep.index = range(sleep.shape[0])
                     sleep = sleep.loc[[0]]
                 if sleep.shape[0]==0:
-                    flag3 = setflag("03:00:00",day_now,'normal'); flag4 = setflag("02:00:00",day_now,'normal')
+                    flag3 = setflag("03:00:00",day_now); flag4 = setflag("02:00:00",day_now)
                     sleep = raw_wake_table[(raw_wake_table['time']<flag3)&(raw_wake_table['time']>flag4)]
                     if sleep.shape[0]==0:
                         print("no sleeping data")
@@ -195,7 +173,7 @@ def time_picker_single(raw_wake_table, types,rms_data_input):
         return sleep
 
     if types =='wakeup':
-        flag3 = setflag("05:00:00",day_now,'normal')
+        flag3 = setflag("05:00:00",day_now)
         wakeup = raw_wake_table[raw_wake_table['time']>flag3]
         if wakeup.shape[0]>1:
             wakeup.index = range(wakeup.shape[0])
@@ -248,8 +226,8 @@ def bathroom_table_prep(room_acttime_input):
     bathroom_time['time'] = bathroom_time['time'].apply(lambda x: x-timedelta(minutes = 5))
     if bathroom_time.shape[0]>0:
         bathroom_time = bathroon_checker(bathroom_time)
-    if bathroom_time.shape[0]==0:
-        bathroom_time = bathroom_time
+    else:
+    	pass
     return bathroom_time
 
 
@@ -257,67 +235,65 @@ def get_data(containername,blobname):
     blob_service_ = BlockBlobService(account_name=account_name, account_key = account_key)
     blob_Class_ = blob_service_.get_blob_to_text(container_name=containername, blob_name = blobname)
     blob_String_ =blob_Class_.content
-    room_acttime = pd.read_csv(StringIO(blob_String_),low_memory=False)
-    return room_acttime
+    return pd.read_csv(StringIO(blob_String_),low_memory=False)
 
 def final_generator(hub_id,types):
     awake_table = get_data('temp1',hub_id)
     room_acttime = get_data('temp2',hub_id)
-    if awake_table.shape[0]!=0:
-        awake_table['time'] = awake_table['time'].apply(lambda x: datetime.strptime(x,"%Y-%m-%d %H:%M:%S"))
-    if room_acttime.shape[0]!=0:
-        room_acttime['time'] = room_acttime['time'].apply(lambda x: datetime.strptime(x,"%Y-%m-%d %H:%M:%S"))  
     rms_data = get_data('temp3',hub_id)
-    if rms_data.shape[0]!=0:
+    try:
+        awake_table['time'] = awake_table['time'].apply(lambda x: datetime.strptime(x,"%Y-%m-%d %H:%M:%S"))
+    except:
+    	pass
+    try:	
+        room_acttime['time'] = room_acttime['time'].apply(lambda x: datetime.strptime(x,"%Y-%m-%d %H:%M:%S"))  
+    except:
+        pass
+    try:        
         rms_data['time'] = rms_data['time'].apply(lambda x: datetime.strptime(x,"%Y-%m-%d %H:%M:%S"))  
+    except:
+    	pass
     if room_acttime.shape[0]!=0:
-        print("multiroom user")    
+        print("multiroom user")
+        bathroom_time = bathroom_table_prep(room_acttime)    
         if types=='wakeup':
             if awake_table.shape[0]>1:
-                flag = awake_table['time'];flag.index = range(flag.shape[0])
-                flag1 = flag[0]#;k = len(flag)-1;flag2 = flag[k]
-                bathroom_time = bathroom_table_prep(room_acttime)
+                flag1 = awake_table['time'][0]#;flag.index = range(flag.shape[0])
                 bathroom_time = bathroom_time[bathroom_time['time']>flag1]
-                awake_table = awake_table.append(bathroom_time)
-                awake_table = del_neighbor(awake_table,'wakeup')
-                awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
-                wakeup = time_picker(awake_table,'wakeup',rms_data,room_acttime)
-            
             if awake_table.shape[0]==1:
-                flag = awake_table['time'];flag.index = range(flag.shape[0])
-                bathroom_time = bathroom_table_prep(room_acttime)
-                flag1 = flag[0];flag2=setflag("05:00:00",day_now,'normal')
+                flag1 = awake_table['time'][0];flag2=setflag("05:00:00",day_now)
                 if flag1<flag2:
                       bathroom_time = bathroom_time[bathroom_time['time']>flag1]
-                if flag1>flag2:
-                      flag3 = setflag("20:59:59",day_before,'normal')
+                else:
+                      flag3 = setflag("20:59:59",day_before)
                       bathroom_time = bathroom_time[bathroom_time['time']>flag3]
+            if (awake_table.shape[0]==1)|(awake_table.shape[0]>1):
                 awake_table = awake_table.append(bathroom_time)
                 awake_table = del_neighbor(awake_table,'wakeup')      
                 awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
                 wakeup = time_picker(awake_table,'wakeup',rms_data,room_acttime)
             if awake_table.shape[0]==0:
-                bathroom_time = bathroom_table_prep(room_acttime)
-                if bathroom_time.shape[0]!=0:
+                try:
                     bathroom_time = del_neighbor(bathroom_time,'wakeup')
                     wakeup = time_picker(bathroom_time,'wakeup',rms_data,room_acttime)
-                if bathroom_time.shape[0]==0:    
-                    wakeup = pd.DataFrame(); wakeup['wakeup'] = 'nan'            
+                except:    
+                    pass             
+        #--------------------sleep part---------------------------------          
         if types=='sleep':
             bathroom_time = bathroom_table_prep(room_acttime)
-            if awake_table.shape[0]!=0:
-                awake_table = awake_table[awake_table['sum']>10]
+            #if awake_table.shape[0]!=0:
+                #awake_table = awake_table[awake_table['sum']>10]
             if awake_table.shape[0]>0:
                 awake_table = awake_table.append(bathroom_time)
                 awake_table = del_neighbor(awake_table,'sleep')
                 awake_table['time'] = awake_table['time'].apply(lambda x: x.to_datetime())
-                sleep = time_picker(awake_table,'sleep',bathroom_time,rms_data,room_acttime)
+                sleep = time_picker(awake_table,'sleep',rms_data,room_acttime)
             if awake_table.shape[0]==0:
-                if bathroom_time.shape[0]!=0:
+                try:
                     bathroom_time = del_neighbor(bathroom_time,'sleep') 
                     sleep = time_picker(bathroom_time,'sleep',rms_data,room_acttime)
-                if bathroom_time.shape[0]==0:
-                    sleep = pd.DataFrame(); sleep['wakeup'] = 'nan'
+                except:
+                    pass
     if room_acttime.shape[0]==0:
         print("RMS only")
         bathroom_time = pd.DataFrame()
@@ -331,20 +307,18 @@ def final_generator(hub_id,types):
                 #awake_table = awake_table[awake_table['sum']>12]
                 awake_table = del_neighbor(awake_table,'sleep')
                 sleep = time_picker_single(awake_table,'sleep',rms_data)
-        else:
-            sleep = pd.DataFrame(); sleep['sleep'] = 'nan'
-            wakeup = pd.DataFrame(); wakeup['wakeup'] = 'nan'
     if types=='sleep':
-        if sleep.shape[0]!=0:
+        try:
             return sleep.ix[0]['sleep']
-        if sleep.shape[0]==0:
+        except:
             return ['nan']        
     if types=='wakeup':
-        if wakeup.shape[0]!=0:            
+        try:            
             return wakeup.ix[0]['wakeup']
-        if wakeup.shape[0]==0:            
+        except:            
             return ['nan']
 
+    
 
 account_name='####'
 account_key='####'
@@ -354,3 +328,4 @@ hublist = get_data('rms','hublist.csv')
 hublist['wakeup'] = hublist['HUB ID'].apply(lambda x: final_generator(x,'wakeup'))
 hublist['sleep'] = hublist['HUB ID'].apply(lambda x: final_generator(x,'sleep'))
 print(hublist)
+
