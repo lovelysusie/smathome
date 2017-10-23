@@ -1,8 +1,12 @@
+'''
+This part is collecting awake_table
+'''
+
 import sys, os.path
 import os
 import json
 import time
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'myvenv/Lib/site-packages')))
+#sys.path.append(os.path.abspath(os.path.join(os.path.dirname( __file__ ), 'myvenv/Lib/site-packages')))
 
 import pandas as pd
 from datetime import datetime
