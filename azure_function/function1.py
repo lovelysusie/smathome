@@ -5,6 +5,10 @@ Created on Wed Sep  6 11:26:38 2017
 
 @author: Susie
 """
+'''
+This part is going to get the rms data and PIR data of today and put them in exact folder.
+'''
+
 import sys, os.path
 import os
 import json
@@ -34,8 +38,8 @@ def from_blob_load_data(account_name_,account_key_,container_name_,types):
     blob_table['date'] = blob_date
     blob_table['blobname'] = blobs    
 
-    Today = date.today(); Today = Today.strftime('%Y-%m-%d')
-    Yst = date.today() - timedelta(1) ; Yst = Yst.strftime('%Y-%m-%d')
+    Today = date.today().strftime('%Y-%m-%d')
+    Yst = (date.today() - timedelta(1)).strftime('%Y-%m-%d')
     blob_table = blob_table[(blob_table['date']==Today)|(blob_table['date']==Yst)]    
 
     if blob_table.shape[0]>0:
@@ -106,8 +110,8 @@ def setflag(timestamp,day,tz):
         flag = flag
     return flag
 
-account_name='blobsensordata'
-account_key='zUYv9mIC9KPr/k+Sa15y4mN6mtozuJcF/n979cqojT4HaMUj3ahEHaPBVtpDihwfO78JTk8sQ29xCaxGWfjtSA=='
+account_name='####'
+account_key='####'
 
 container_name = 'rmsinput'
 rms_whole = from_blob_load_data(account_name_ = account_name,account_key_=account_key,container_name_=container_name,types='rms')
@@ -120,7 +124,7 @@ append_blob_service = AppendBlobService(account_name=account_name, account_key=a
 container_name = 'rmsinputclean'
 append_blob_service.create_container(container_name)
 sleep_text = rms_whole.to_csv()
-Today = date.today(); Today = Today.strftime('%Y-%m-%d')
+Today = date.today().strftime('%Y-%m-%d')
 append_blob_service.create_blob(container_name, Today)
 append_blob_service.append_blob_from_text(container_name, Today, sleep_text)
 
@@ -134,7 +138,7 @@ append_blob_service = AppendBlobService(account_name=account_name, account_key=a
 container_name = 'pirinputclean'
 append_blob_service.create_container(container_name)
 sleep_text = blob_df_whole.to_csv()
-Today = date.today(); Today = Today.strftime('%Y-%m-%d')
+Today = date.today().strftime('%Y-%m-%d')
 append_blob_service.create_blob(container_name, Today)
 append_blob_service.append_blob_from_text(container_name, Today, sleep_text)
 
