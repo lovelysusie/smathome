@@ -131,7 +131,7 @@ def check_awake_table(awake_table_input,raw_rms_input):
         awake_table_input = awake_table_input
     return awake_table_input
 
-def data_from_blob(container_name_input,blob_name,types='main'):
+def data_from_blob(container_name_input,blob_name):
     container_name = container_name_input
     blob_service_ = BlockBlobService(account_name=account_name, account_key = account_key)
     blobs_ = blob_name
@@ -151,19 +151,16 @@ def remove_outliers(table):
 account_name='####'
 account_key='####'
 
-Today = date.today().strftime('%Y-%m-%d')
 
-container_name = 'rmsinputclean'
-rms_whole = data_from_blob(container_name,Today)
+rms_whole = data_from_blob('function','rms_raw_clean')
 
-container_name = 'rms'
-blobs_ = 'hublist.csv'
-hublist = data_from_blob(container_name,blobs_,'hublist')
+hublist = data_from_blob('rms','hublist.csv')
 
-container_name = 'temp1'
+container_name = 'function'
 append_blob_service = AppendBlobService(account_name=account_name, account_key=account_key)
-append_blob_service.create_container(container_name)
-
+# append_blob_service.create_container(container_name)
+awake_table_whole = pd.DataFrame()
+append_blob_service.create_blob('function', 'awake_table_whole')
 for hub in hublist['HUB ID']:
     print(hub)
     hub_id = hub
@@ -171,12 +168,6 @@ for hub in hublist['HUB ID']:
     awake_table = get_grouped(rms_data,'bedroom')
     if awake_table.shape[0]!=0:
         awake_table = check_awake_table(awake_table,rms_data)
-    rms = awake_table.to_csv()
-    append_blob_service.create_blob(container_name, hub_id)
-    append_blob_service.append_blob_from_text(container_name, hub_id, rms)
+    awake_table_whole = awake_table_whole.append(awake_table)
+    append_blob_service.append_blob_from_text(container_name, 'awake_table_whole', awake_table_whole.to_csv())
     
-
-
-
-
-
