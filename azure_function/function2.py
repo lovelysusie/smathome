@@ -151,7 +151,6 @@ def remove_outliers(table):
 account_name='####'
 account_key='####'
 
-
 rms_whole = data_from_blob('function','rms_raw_clean')
 
 hublist = data_from_blob('rms','hublist.csv')
@@ -160,7 +159,6 @@ container_name = 'function'
 append_blob_service = AppendBlobService(account_name=account_name, account_key=account_key)
 # append_blob_service.create_container(container_name)
 awake_table_whole = pd.DataFrame()
-append_blob_service.create_blob('function', 'awake_table_whole')
 for hub in hublist['HUB ID']:
     print(hub)
     hub_id = hub
@@ -168,6 +166,8 @@ for hub in hublist['HUB ID']:
     awake_table = get_grouped(rms_data,'bedroom')
     if awake_table.shape[0]!=0:
         awake_table = check_awake_table(awake_table,rms_data)
+    awake_table['deviceid'] = hub
     awake_table_whole = awake_table_whole.append(awake_table)
-    append_blob_service.append_blob_from_text(container_name, 'awake_table_whole', awake_table_whole.to_csv())
-    
+
+append_blob_service.create_blob('function', 'awake_table_whole')
+append_blob_service.append_blob_from_text(container_name, 'awake_table_whole', awake_table_whole.to_csv())
