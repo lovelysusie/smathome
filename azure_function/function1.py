@@ -129,7 +129,7 @@ append_blob_service.append_blob_from_text("function", "rms_raw_clean", rms_whole
 container_name = 'adventisdatainput'
 blob_df_whole=from_blob_load_data(account_name,account_key,container_name,'PIR')
 blob_df_whole = time_normer(blob_df_whole)
-blob_df_whole = blob_df_whole[['deviceid','tasklocation','value','time','eventtime']] 
+blob_df_whole = blob_df_whole[['deviceid','tasklocation','value','time']] 
 
 append_blob_service = AppendBlobService(account_name=account_name, account_key=account_key)
 # container_name = 'pirinputclean'
